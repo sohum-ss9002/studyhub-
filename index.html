@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyHub — Mr. Sohum's JEE Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+
+<!-- BOOT SCREEN: shown briefly while saved progress loads from storage -->
+<div id="boot-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;">
+  <div style="font-family:'Orbitron',monospace;font-weight:900;font-size:1.4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">⚡ STUDYHUB</div>
+  <div style="color:var(--muted);font-size:0.85rem;">Loading your progress...</div>
+</div>
+
+<div id="app-root" style="display:none;">
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="nav-logo">⚡ STUDYHUB</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('dashboard',this)">🏠 Home</button>
+      <button class="nav-tab" onclick="showPage('chapters',this)">📚 Chapters</button>
+      <button class="nav-tab" onclick="showPage('timer',this)">⏱️ Timer</button>
+      <button class="nav-tab" onclick="showPage('accountability',this)">✅ Daily Check</button>
+      <button class="nav-tab" onclick="showPage('revision',this)">🔁 Revision</button>
+      <button class="nav-tab" onclick="showPage('quests',this)">🗺️ Quests</button>
+      <button class="nav-tab" onclick="showPage('skilltree',this)">🌳 Skill Tree</button>
+      <button class="nav-tab" onclick="showPage('shop',this)">🛒 Shop</button>
+      <button class="nav-tab" onclick="showPage('analytics',this)">📊 Analytics</button>
+      <button class="nav-tab" onclick="showPage('achievements',this)">🏆 Badges</button>
+      <button class="nav-tab" onclick="showPage('syllabus',this)">📋 Syllabus</button>
+      <button class="nav-tab" onclick="showPage('boards',this)">🎓 Boards</button>
+    </div>
+    <div class="nav-right">
+      <div id="save-indicator" style="font-size:0.72rem;color:var(--muted);opacity:0;transition:opacity 0.3s;white-space:nowrap;">✅ Saved</div>
+      <div class="coins-badge" id="nav-coins">🪙 0</div>
+      <div class="xp-badge" id="nav-xp">⚡ 0 XP</div>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ DASHBOARD ============ -->
+<div class="page active" id="page-dashboard">
+  <div class="main">
+    <div class="hero">
+      <div>
+        <div class="hero-greeting">Welcome back, Champion</div>
+        <div class="hero-name"><span id="hero-avatar">🧑‍🎓</span> Mr. Sohum <span id="hero-title-tag" style="font-size:0.85rem;font-weight:600;color:var(--accent3);vertical-align:middle">JEE Aspirant</span></div>
+        <div class="hero-sub">IIT Guwahati is waiting. <span id="hero-quote">Every chapter you finish is a step closer.</span></div>
+      </div>
+      <div class="countdown-box">
+        <div class="countdown-label">🎯 JEE 2027</div>
+        <div class="countdown-days" id="countdown-days">---</div>
+        <div class="countdown-sub">days remaining</div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-value" id="stat-streak">0</div><div class="stat-label">Day Streak</div></div>
+      <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value" id="stat-hours">0h</div><div class="stat-label">Today's Hours</div></div>
+      <div class="stat-card"><div class="stat-icon">📚</div><div class="stat-value" id="stat-chapters">0</div><div class="stat-label">Chapters Done</div></div>
+      <div class="stat-card"><div class="stat-icon">❓</div><div class="stat-value" id="stat-questions">0</div><div class="stat-label">Questions Solved</div></div>
+      <div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value" id="stat-readiness">0%</div><div class="stat-label">JEE Readiness</div></div>
+    </div>
+    <div class="level-section">
+      <div class="level-header">
+        <div>
+          <div class="level-title font-mono" id="level-name">⚔️ ROOKIE SCHOLAR — Level 1</div>
+          <div class="text-muted mt-8" style="font-size:0.82rem">Keep solving. Keep grinding. IIT Guwahati awaits.</div>
+        </div>
+        <div class="level-badge" id="level-badge">LVL 1</div>
+      </div>
+      <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
+      <div class="xp-text"><span id="xp-current">0 XP</span><span id="xp-next">Next level: 500 XP</span></div>
+    </div>
+    <div class="main-grid">
+      <!-- DAILY GOALS -->
+      <div class="card">
+        <div class="card-title">🎯 Daily Goals</div>
+        <div id="goals-list">
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,50)">✓</div><div class="goal-text">Solve 20 DPP questions</div><div class="goal-xp">+50 XP</div></div>
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,30)">✓</div><div class="goal-text">Study 4 hours minimum</div><div class="goal-xp">+30 XP</div></div>
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,40)">✓</div><div class="goal-text">Complete 1 chapter topic</div><div class="goal-xp">+40 XP</div></div>
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,20)">✓</div><div class="goal-text">Revise yesterday's notes</div><div class="goal-xp">+20 XP</div></div>
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,25)">✓</div><div class="goal-text">Go cycling 🚴</div><div class="goal-xp">+25 XP</div></div>
+          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,15)">✓</div><div class="goal-text">Sleep by 1 AM 😴</div><div class="goal-xp">+15 XP</div></div>
+        </div>
+        <div class="mt-16"><button class="btn btn-secondary" style="width:100%;font-size:0.8rem" onclick="logQuestions()">+ Log Questions Solved</button></div>
+      </div>
+      <!-- MONTHLY & YEARLY TARGETS -->
+      <div class="card">
+        <div class="card-title">📅 Monthly &amp; Yearly Targets</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:14px">Target: 4 chapters/subject/month (12 total)</div>
+        <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:0.82rem">
+          <span>This Month</span><span id="month-progress-text" class="font-mono">0 / 12</span>
+        </div>
+        <div class="subject-bar-bg" style="margin-bottom:16px"><div class="subject-bar-fill" id="month-progress-bar" style="width:0%;background:linear-gradient(90deg,#7c3aed,#06b6d4)"></div></div>
+        <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:0.82rem">
+          <span>This Year</span><span id="year-progress-text" class="font-mono">0 / 0</span>
+        </div>
+        <div class="subject-bar-bg" style="margin-bottom:14px"><div class="subject-bar-fill" id="year-progress-bar" style="width:0%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:0.72rem;color:var(--muted);text-align:center;margin-bottom:14px">
+          <div>⚛️ Phy: <span id="month-phy" class="font-mono">0/4</span></div>
+          <div>🧪 Chem: <span id="month-chem" class="font-mono">0/4</span></div>
+          <div>📐 Math: <span id="month-math" class="font-mono">0/4</span></div>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;font-size:0.8rem" onclick="openLogChapterModal()">+ Add Chapter Completion</button>
+      </div>
+      <!-- STREAK -->
+      <div class="card">
+        <div class="card-title">🔥 Study Streak</div>
+        <div class="streak-display">
+          <div class="streak-fire">🔥</div>
+          <div class="streak-number" id="streak-big">0</div>
+          <div class="streak-label">day streak — Don't break the chain!</div>
+        </div>
+        <div class="streak-calendar" id="streak-calendar"></div>
+        <div class="mt-16"><button class="btn btn-success" style="width:100%;font-size:0.8rem" onclick="markStudied()">✅ Mark Today as Studied</button></div>
+      </div>
+      <!-- SUBJECT PROGRESS -->
+      <div class="card">
+        <div class="card-title">📚 Subject Progress</div>
+        <div class="subject-cards">
+          <div class="subject-card">
+            <div class="subject-header"><div class="subject-name">⚛️ Physics</div><div class="subject-pct text-danger" id="phy-pct">0%</div></div>
+            <div class="subject-bar-bg"><div class="subject-bar-fill" id="phy-bar" style="width:0%;background:linear-gradient(90deg,#ef4444,#f97316)"></div></div>
+            <div class="subject-stats"><div class="subject-stat">Done: <span id="phy-done">0</span></div><div class="subject-stat">Total: <span id="phy-total">0</span></div><div class="subject-stat">Backlog: <span id="phy-backlog" class="text-danger">High</span></div></div>
+          </div>
+          <div class="subject-card">
+            <div class="subject-header"><div class="subject-name">🧪 Chemistry</div><div class="subject-pct text-accent" id="chem-pct">0%</div></div>
+            <div class="subject-bar-bg"><div class="subject-bar-fill" id="chem-bar" style="width:0%;background:linear-gradient(90deg,#7c3aed,#06b6d4)"></div></div>
+            <div class="subject-stats"><div class="subject-stat">Done: <span id="chem-done">0</span></div><div class="subject-stat">Total: <span id="chem-total">0</span></div><div class="subject-stat">Backlog: <span id="chem-backlog" class="text-warning">Med</span></div></div>
+          </div>
+          <div class="subject-card">
+            <div class="subject-header"><div class="subject-name">📐 Maths</div><div class="subject-pct text-success" id="math-pct">0%</div></div>
+            <div class="subject-bar-bg"><div class="subject-bar-fill" id="math-bar" style="width:0%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div></div>
+            <div class="subject-stats"><div class="subject-stat">Done: <span id="math-done">0</span></div><div class="subject-stat">Total: <span id="math-total">0</span></div><div class="subject-stat">Backlog: <span id="math-backlog" class="text-warning">Med</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- BOSS BATTLE -->
+    <div class="boss-card" id="boss-section">
+      <div class="boss-title">⚔️ CURRENT BOSS BATTLE</div>
+      <div class="boss-name" id="boss-name">🔥 Kinematics — The Foundation Destroyer</div>
+      <div class="boss-hp-bg"><div class="boss-hp-fill" id="boss-hp" style="width:100%"></div></div>
+      <div class="boss-hp-text" id="boss-hp-text">Boss HP: 100% — Defeat it by completing all chapter questions!</div>
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button class="btn btn-danger" onclick="attackBoss(10)">⚔️ Attack! (Solve 10 Qs)</button>
+        <button class="btn btn-primary" onclick="attackBoss(25)">💥 Power Attack! (Solve DPP)</button>
+        <button class="btn btn-secondary" onclick="changeBoss()">🎯 Change Boss</button>
+      </div>
+    </div>
+    <!-- BACKLOG METER -->
+    <div class="section-title mb-16">🔴 Backlog Radar</div>
+    <div class="card mb-16">
+      <div class="backlog-bars">
+        <div class="backlog-item">
+          <div class="backlog-header"><span>⚛️ Physics Backlog</span><span class="text-danger font-mono" id="phy-backlog-pct">--%</span></div>
+          <div class="backlog-bar-bg"><div class="backlog-bar-fill" id="phy-backlog-bar" style="width:0%;background:linear-gradient(90deg,#ef4444,#f97316)"></div></div>
+        </div>
+        <div class="backlog-item">
+          <div class="backlog-header"><span>🧪 Chemistry Backlog</span><span class="text-warning font-mono" id="chem-backlog-pct">--%</span></div>
+          <div class="backlog-bar-bg"><div class="backlog-bar-fill" id="chem-backlog-bar" style="width:0%;background:linear-gradient(90deg,#f59e0b,#f97316)"></div></div>
+        </div>
+        <div class="backlog-item">
+          <div class="backlog-header"><span>📐 Maths Backlog</span><span class="text-warning font-mono" id="math-backlog-pct">--%</span></div>
+          <div class="backlog-bar-bg"><div class="backlog-bar-fill" id="math-backlog-bar" style="width:0%;background:linear-gradient(90deg,#f59e0b,#10b981)"></div></div>
+        </div>
+      </div>
+    </div>
+    <!-- COMEBACK -->
+    <div class="section-title mb-16">⚡ Comeback Score</div>
+    <div class="card">
+      <div class="flex-between">
+        <div>
+          <div style="font-size:0.85rem;color:var(--muted);margin-bottom:4px">Your Comeback Meter</div>
+          <div style="font-family:'Orbitron',monospace;font-size:2rem;font-weight:700;color:var(--accent3)" id="comeback-score">0</div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-top:4px">Every goal completed powers your comeback 🔥</div>
+        </div>
+        <div style="font-size:4rem">⚡</div>
+      </div>
+      <div class="xp-bar-bg mt-16"><div class="xp-bar-fill" id="comeback-bar" style="width:0%;background:linear-gradient(90deg,var(--accent3),#f97316)"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHAPTERS PAGE ============ -->
+<div class="page" id="page-chapters">
+  <div class="main">
+    <div class="chapter-header">
+      <div class="chapter-title">📚 Chapter Tracker</div>
+      <button class="btn btn-primary" onclick="openAddChapter()">+ Add Chapter</button>
+    </div>
+    <div class="subject-tabs">
+      <button class="subject-tab active" id="stab-physics" onclick="showSubject('physics',this)">⚛️ Physics</button>
+      <button class="subject-tab" id="stab-chemistry" onclick="showSubject('chemistry',this)">🧪 Chemistry</button>
+      <button class="subject-tab" id="stab-maths" onclick="showSubject('maths',this)">📐 Maths</button>
+    </div>
+    <div class="chapters-list" id="chapters-list"></div>
+  </div>
+</div>
+
+<!-- ============ TIMER PAGE ============ -->
+<div class="page" id="page-timer">
+  <div class="main">
+    <div class="timer-display">
+      <div style="font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">EACH SUBJECT HAS ITS OWN TIMER — RUN ANY OR ALL AT ONCE</div>
+      <div class="timer-subject-grid">
+        <div class="timer-subject-card" id="card-physics">
+          <div class="timer-subj-icon">⚛️</div>
+          <div class="timer-subj-name">Physics</div>
+          <div class="timer-clock" id="clock-physics" style="font-size:1.8rem;margin:10px 0">00:00:00</div>
+          <div class="timer-btns" style="margin-bottom:10px">
+            <button class="btn btn-primary" onclick="startSubjectTimer('physics')" id="start-physics">▶ Start</button>
+            <button class="btn btn-secondary" onclick="pauseSubjectTimer('physics')" id="pause-physics" style="display:none">⏸ Pause</button>
+            <button class="btn btn-danger" onclick="resetSubjectTimer('physics')">↺ Reset</button>
+          </div>
+          <div class="timer-subj-time">Total today: <span id="timer-phy">0h 0m</span></div>
+        </div>
+        <div class="timer-subject-card" id="card-chemistry">
+          <div class="timer-subj-icon">🧪</div>
+          <div class="timer-subj-name">Chemistry</div>
+          <div class="timer-clock" id="clock-chemistry" style="font-size:1.8rem;margin:10px 0">00:00:00</div>
+          <div class="timer-btns" style="margin-bottom:10px">
+            <button class="btn btn-primary" onclick="startSubjectTimer('chemistry')" id="start-chemistry">▶ Start</button>
+            <button class="btn btn-secondary" onclick="pauseSubjectTimer('chemistry')" id="pause-chemistry" style="display:none">⏸ Pause</button>
+            <button class="btn btn-danger" onclick="resetSubjectTimer('chemistry')">↺ Reset</button>
+          </div>
+          <div class="timer-subj-time">Total today: <span id="timer-chem">0h 0m</span></div>
+        </div>
+        <div class="timer-subject-card" id="card-maths">
+          <div class="timer-subj-icon">📐</div>
+          <div class="timer-subj-name">Maths</div>
+          <div class="timer-clock" id="clock-maths" style="font-size:1.8rem;margin:10px 0">00:00:00</div>
+          <div class="timer-btns" style="margin-bottom:10px">
+            <button class="btn btn-primary" onclick="startSubjectTimer('maths')" id="start-maths">▶ Start</button>
+            <button class="btn btn-secondary" onclick="pauseSubjectTimer('maths')" id="pause-maths" style="display:none">⏸ Pause</button>
+            <button class="btn btn-danger" onclick="resetSubjectTimer('maths')">↺ Reset</button>
+          </div>
+          <div class="timer-subj-time">Total today: <span id="timer-math">0h 0m</span></div>
+        </div>
+      </div>
+      <div class="timer-today-row">
+        <div class="timer-stat"><div class="timer-stat-val" id="timer-total-today">0h 0m</div><div class="timer-stat-label">Total Today (all subjects)</div></div>
+        <div class="timer-stat"><div class="timer-stat-val" id="timer-running-count">0</div><div class="timer-stat-label">Timers Running</div></div>
+        <div class="timer-stat"><div class="timer-stat-val" id="timer-xp-today">0</div><div class="timer-stat-label">XP from Study</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ DAILY ACCOUNTABILITY ============ -->
+<div class="page" id="page-accountability">
+  <div class="main">
+    <div class="section-title mb-16">✅ Daily Accountability Check</div>
+    <div class="accountability-section">
+      <div class="accountability-title">📋 Task Log</div>
+      <div class="accountability-desc">Log what you solved today. Complete 2+ tasks to mark your day done. (AI grading is off for now — this is an honest self-report log.)</div>
+      <div id="day-complete-banner" class="day-complete-banner">
+        <div style="font-size:2rem;margin-bottom:8px">🎉</div>
+        <div style="font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--accent4)">DAY COMPLETE!</div>
+        <div style="font-size:0.85rem;color:var(--muted);margin-top:6px">All tasks logged. You earned it, Sohum! 🔥</div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="card-title">📝 Log Today's Work</div>
+      <div style="margin-bottom:12px">
+        <label class="sim-label">Task Name (e.g. "NLM DPP" or "Thermodynamics exercises")</label>
+        <input class="modal-input" id="task-name-input" placeholder="What did you solve today?" style="margin-bottom:0">
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="sim-label">How many problems did you solve?</label>
+        <input class="modal-input" id="task-count-input" type="number" min="1" placeholder="e.g. 12" style="margin-bottom:0">
+      </div>
+      <button class="btn btn-success" onclick="logDailyTask()" style="width:100%">✅ Log Task Complete (+50 XP)</button>
+    </div>
+
+    <div class="section-title mb-16 mt-16">📋 Today's Task Log</div>
+    <div id="completed-tasks-list">
+      <div style="text-align:center;color:var(--muted);padding:32px;font-size:0.9rem">No tasks completed yet today. Submit your work above! 💪</div>
+    </div>
+
+    <div class="section-title mb-16 mt-16">📅 Day History</div>
+    <div id="day-history-list"></div>
+  </div>
+</div>
+
+<!-- ============ ANALYTICS PAGE ============ -->
+<div class="page" id="page-analytics">
+  <div class="main">
+    <div class="section-title mb-16">📊 Analytics Dashboard</div>
+    <div class="analytics-grid">
+      <div class="chart-card"><div class="chart-title">📚 Subject Time Distribution</div><canvas id="chart-subject-pie" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">📈 Chapter Completion</div><canvas id="chart-chapter-pie" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">📅 Weekly Study Hours</div><canvas id="chart-weekly" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">🔴 Backlog Distribution</div><canvas id="chart-backlog" height="200"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ACHIEVEMENTS PAGE ============ -->
+<div class="page" id="page-achievements">
+  <div class="main">
+    <div class="section-title mb-16">🏆 Achievements & Badges</div>
+    <div class="badges-grid" id="badges-grid"></div>
+  </div>
+</div>
+
+<!-- ============ SYLLABUS MANAGER ============ -->
+<div class="page" id="page-syllabus">
+  <div class="main">
+    <div class="syllabus-header">
+      <div class="chapter-title">📋 JEE Syllabus Manager</div>
+      <button class="btn btn-secondary" onclick="resetSyllabus()">🔄 Reset to Default</button>
+    </div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Edit your syllabus below. Click ✏️ to rename, 🗑️ to delete. Changes sync to chapter tracker automatically.</div>
+    <div id="syllabus-physics-panel" class="syllabus-subject-panel">
+      <div class="syllabus-subject-title">⚛️ Physics <span style="color:var(--muted);font-size:0.75rem;font-weight:400" id="phy-syllabus-count"></span></div>
+      <div class="syllabus-list" id="syllabus-physics"></div>
+      <div class="syllabus-add-row">
+        <input class="syllabus-add-input" id="syllabus-add-physics" placeholder="Add new Physics chapter...">
+        <button class="btn btn-primary btn-sm" onclick="syllabusAdd('physics')">+ Add</button>
+      </div>
+    </div>
+    <div id="syllabus-chemistry-panel" class="syllabus-subject-panel">
+      <div class="syllabus-subject-title">🧪 Chemistry <span style="color:var(--muted);font-size:0.75rem;font-weight:400" id="chem-syllabus-count"></span></div>
+      <div class="syllabus-list" id="syllabus-chemistry"></div>
+      <div class="syllabus-add-row">
+        <input class="syllabus-add-input" id="syllabus-add-chemistry" placeholder="Add new Chemistry chapter...">
+        <button class="btn btn-primary btn-sm" onclick="syllabusAdd('chemistry')">+ Add</button>
+      </div>
+    </div>
+    <div id="syllabus-maths-panel" class="syllabus-subject-panel">
+      <div class="syllabus-subject-title">📐 Maths <span style="color:var(--muted);font-size:0.75rem;font-weight:400" id="math-syllabus-count"></span></div>
+      <div class="syllabus-list" id="syllabus-maths"></div>
+      <div class="syllabus-add-row">
+        <input class="syllabus-add-input" id="syllabus-add-maths" placeholder="Add new Maths chapter...">
+        <button class="btn btn-primary btn-sm" onclick="syllabusAdd('maths')">+ Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ BOARDS (placeholder — content to be added later) ============ -->
+<div class="page" id="page-boards">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:8px">🎓 Boards</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">This page is reserved for your Boards (Class 12) tracking — separate from JEE prep. Tell me what you want here and I'll build it.</div>
+    <div class="card" style="text-align:center;padding:48px 24px;color:var(--muted)">
+      <div style="font-size:2.5rem;margin-bottom:12px">🚧</div>
+      <div style="font-size:0.95rem">Empty for now — waiting on your spec.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REVISION (SPACED REPETITION) ============ -->
+<div class="page" id="page-revision">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🔁 Revision</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Spaced repetition at 1, 3, 7, 14 &amp; 30 days after completing a chapter. Beat the forgetting curve.</div>
+
+    <div class="revision-section-title">🔴 Overdue</div>
+    <div class="revision-list" id="revision-overdue"></div>
+
+    <div class="revision-section-title">🟡 Due Today</div>
+    <div class="revision-list" id="revision-today"></div>
+
+    <div class="revision-section-title">🟢 Upcoming (next 7 days)</div>
+    <div class="revision-list" id="revision-upcoming"></div>
+
+    <div class="chapter-title" style="margin:36px 0 4px;font-size:1.1rem">🗂️ Flashcards</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:16px">Pick a subject and chapter, then click a card to flip it.</div>
+
+    <div class="flashcard-deck-select" id="flashcard-subject-select">
+      <div class="flashcard-chip active" onclick="setFlashcardSubject('physics',this)">⚛️ Physics</div>
+      <div class="flashcard-chip" onclick="setFlashcardSubject('chemistry',this)">🧪 Chemistry</div>
+      <div class="flashcard-chip" onclick="setFlashcardSubject('maths',this)">📐 Maths</div>
+    </div>
+    <select class="modal-input" id="flashcard-chapter-select" style="margin-bottom:20px" onchange="loadFlashcardDeck()"></select>
+
+    <div id="flashcard-empty-state" class="revision-empty" style="display:none">No flashcards yet for this chapter. Add one below!</div>
+
+    <div id="flashcard-viewer" style="display:none">
+      <div class="flashcard-stage">
+        <div class="flashcard-flip" id="flashcard-flip" onclick="flipFlashcard()">
+          <div class="flashcard-face front">
+            <div class="flashcard-type-tag" id="flashcard-type-front">concept</div>
+            <div id="flashcard-front-text" style="font-size:1.05rem;font-weight:600"></div>
+            <div class="flashcard-hint">tap to flip</div>
+          </div>
+          <div class="flashcard-face back">
+            <div class="flashcard-type-tag" id="flashcard-type-back">concept</div>
+            <div id="flashcard-back-text" style="font-size:0.95rem"></div>
+            <div class="flashcard-hint">tap to flip back</div>
+          </div>
+        </div>
+      </div>
+      <div class="flashcard-nav">
+        <button class="btn btn-secondary btn-sm" onclick="prevFlashcard()">⬅ Prev</button>
+        <span class="flashcard-progress" id="flashcard-progress">1 / 1</span>
+        <button class="btn btn-secondary btn-sm" onclick="nextFlashcard()">Next ➡</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCurrentFlashcard()">🗑️ Delete</button>
+      </div>
+    </div>
+
+    <div class="card mt-16">
+      <div class="card-title" style="font-size:0.85rem">➕ Add Flashcard</div>
+      <div class="flashcard-add-row">
+        <select class="modal-input" id="new-card-type">
+          <option value="concept">💡 Concept</option>
+          <option value="formula">🧮 Formula</option>
+        </select>
+        <input class="modal-input" id="new-card-front" placeholder="Front (question / formula name)">
+      </div>
+      <div class="flashcard-add-row">
+        <input class="modal-input" id="new-card-back" placeholder="Back (answer / formula)" style="flex:2">
+        <button class="btn btn-primary" onclick="addFlashcard()">+ Add Card</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ QUESTS PAGE ============ -->
+<div class="page" id="page-quests">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🗺️ Daily Quests</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">New quests every day. Complete them to earn Study Coins — spend coins in the Shop.</div>
+    <div id="daily-quests-list"></div>
+  </div>
+</div>
+
+<!-- ============ SKILL TREE PAGE ============ -->
+<div class="page" id="page-skilltree">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🌳 Skill Tree</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:28px">Each circle is a chapter. Click one to see its sub-topics — already filled in for your default JEE syllabus. Check them off as you study, or add/remove specific ones if you want to customize.</div>
+    <div id="skill-tree-container"></div>
+  </div>
+</div>
+
+<!-- ============ SHOP PAGE ============ -->
+<div class="page" id="page-shop">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🛒 Shop</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:8px">Spend your Study Coins on avatars, titles, and themes.</div>
+    <div class="coins-badge" id="shop-coins-display" style="margin-bottom:24px;display:inline-flex">🪙 0 coins</div>
+
+    <div class="section-title mb-16">😀 Avatars</div>
+    <div class="shop-grid mb-16" id="shop-avatars"></div>
+
+    <div class="section-title mb-16">🏷️ Titles</div>
+    <div class="shop-grid mb-16" id="shop-titles"></div>
+
+    <div class="section-title mb-16">🎨 Themes</div>
+    <div class="shop-grid" id="shop-themes"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="add-chapter-modal">
+  <div class="modal">
+    <div class="modal-title">➕ Add Chapter</div>
+    <input class="modal-input" id="new-chapter-name" placeholder="Chapter name (e.g. Kinematics)">
+    <select class="modal-input" id="new-chapter-subject">
+      <option value="physics">⚛️ Physics</option>
+      <option value="chemistry">🧪 Chemistry</option>
+      <option value="maths">📐 Maths</option>
+    </select>
+    <select class="modal-input" id="new-chapter-weight">
+      <option value="high">🔴 High Weightage (JEE Important)</option>
+      <option value="med">🟡 Medium Weightage</option>
+      <option value="low">🟢 Low Weightage</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('add-chapter-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addChapter()">Add Chapter ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG QUESTIONS MODAL -->
+<div class="modal-overlay" id="log-questions-modal">
+  <div class="modal">
+    <div class="modal-title">📝 Log Questions Solved</div>
+    <input class="modal-input" id="questions-count" type="number" placeholder="How many questions did you solve?" min="1">
+    <select class="modal-input" id="questions-subject">
+      <option value="physics">⚛️ Physics</option>
+      <option value="chemistry">🧪 Chemistry</option>
+      <option value="maths">📐 Maths</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('log-questions-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveQuestions()">Save ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG CHAPTER COMPLETION MODAL (for monthly/yearly targets) -->
+<div class="modal-overlay" id="log-chapter-modal">
+  <div class="modal">
+    <div class="modal-title">📅 Add Chapter Completion</div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Marks a chapter as completed and counts it toward the month you pick — useful for backfilling chapters you finished earlier.</div>
+    <select class="modal-input" id="log-chapter-subject" onchange="populateLogChapterDropdown()">
+      <option value="physics">⚛️ Physics</option>
+      <option value="chemistry">🧪 Chemistry</option>
+      <option value="maths">📐 Maths</option>
+    </select>
+    <select class="modal-input" id="log-chapter-chapter"></select>
+    <select class="modal-input" id="log-chapter-month"></select>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('log-chapter-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmLogChapter()">Add ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-icon" id="toast-icon">🎉</div>
+  <div id="toast-msg">Achievement unlocked!</div>
+</div>
+
+</div><!-- /app-root -->
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="storage.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
