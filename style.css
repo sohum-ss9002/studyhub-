@@ -156,6 +156,28 @@
   .shop-item-price { font-size:0.75rem; color:var(--accent3); margin-bottom:10px; }
   .shop-item-btn { width:100%; padding:6px; border-radius:8px; border:none; font-size:0.72rem; font-weight:700; cursor:pointer; }
 
+  /* BOARDS TAB */
+  .boards-classes-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .boards-class-col .card-title { font-size:0.85rem; }
+  @media (max-width:700px) { .boards-classes-grid { grid-template-columns:1fr; } }
+
+  /* PYQ/DPP TRACKER */
+  .pyq-dpp-grid { display:flex; flex-direction:column; gap:10px; }
+  .pyq-dpp-row { display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center; gap:10px; background:var(--surface); border-radius:10px; padding:10px 14px; }
+  .pyq-dpp-label { font-size:0.82rem; font-weight:600; }
+  .pyq-dpp-counter { display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--muted); justify-content:flex-end; }
+
+  /* LIFESTYLE TRACKER */
+  .lifestyle-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .lifestyle-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; }
+  .lifestyle-icon { font-size:1.6rem; margin-bottom:6px; }
+  .lifestyle-label { font-size:0.75rem; color:var(--muted); margin-bottom:10px; }
+  .lifestyle-control { display:flex; align-items:center; justify-content:center; gap:12px; }
+  .lifestyle-btn { width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .lifestyle-btn:hover { background:var(--accent); border-color:var(--accent); }
+  .lifestyle-value { font-family:'Orbitron',monospace; font-weight:700; font-size:1.1rem; min-width:30px; }
+  @media (max-width:700px) { .lifestyle-grid { grid-template-columns:1fr; } }
+
   /* SKILL TREE */
   .skill-tree-subject { margin-bottom:36px; }
   .skill-tree-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }

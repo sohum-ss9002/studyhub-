@@ -30,8 +30,8 @@
 // policies to check auth.uid() instead.
 // ============================================================
 
-const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL_HERE';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+const SUPABASE_URL = 'https://mgahckadzulhqhicpdlg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_l_Tid-BFWYQGRHXquBMfqQ_mS-eRrVD';
 
 const _supabaseClient = (typeof supabase !== 'undefined' && SUPABASE_URL.startsWith('http'))
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)

@@ -39,6 +39,70 @@ function makeChapter(name, weight) {
 
 // Real JEE sub-topic breakdowns per chapter — used to auto-populate the Skill Tree.
 // You can still add/remove individual sub-topics per chapter from the Skill Tree page.
+// NCERT Class 12 (CBSE 2025-26) chapter lists for the Boards tab.
+// Separate from the JEE chapter lists above — these track your notebook/NCERT
+// completion for board exams specifically.
+// NCERT chapter lists for the Boards tab, verified against CBSE 2025-26 rationalised syllabus.
+// Physics/Chemistry/Maths are split by class (11 and 12) since both years matter for boards.
+// English and P.E. are Class 12 only, per your request.
+const BOARDS_CHAPTERS = {
+  english: {
+    12: [
+      'The Last Lesson','Lost Spring','Deep Water','The Rattrap','Indigo',
+      'Poets and Pancakes','The Interview','Going Places',
+      'My Mother at Sixty-six','An Elementary School Classroom in a Slum','Keeping Quiet','A Thing of Beauty','Aunt Jennifer\'s Tigers',
+      'The Third Level','The Tiger King','Journey to the End of the Earth','The Enemy','Should Wizard Hit Mommy','On the Face of It','Evans Tries an O-Level',
+      'Memories of Childhood',
+    ],
+  },
+  maths: {
+    11: [
+      'Sets','Relations and Functions','Trigonometric Functions','Complex Numbers and Quadratic Equations',
+      'Linear Inequalities','Permutations and Combinations','Binomial Theorem','Sequences and Series',
+      'Straight Lines','Conic Sections','Introduction to Three Dimensional Geometry','Limits and Derivatives',
+      'Statistics','Probability',
+    ],
+    12: [
+      'Relations and Functions','Inverse Trigonometric Functions','Matrices','Determinants',
+      'Continuity and Differentiability','Application of Derivatives','Integrals','Application of Integrals',
+      'Differential Equations','Vector Algebra','Three Dimensional Geometry','Linear Programming','Probability',
+    ],
+  },
+  physics: {
+    11: [
+      'Units and Measurement','Motion in a Straight Line','Motion in a Plane','Laws of Motion',
+      'Work, Energy and Power','System of Particles and Rotational Motion','Gravitation',
+      'Mechanical Properties of Solids','Mechanical Properties of Fluids','Thermal Properties of Matter',
+      'Thermodynamics','Kinetic Theory','Oscillations','Waves',
+    ],
+    12: [
+      'Electric Charges and Fields','Electrostatic Potential and Capacitance','Current Electricity',
+      'Moving Charges and Magnetism','Magnetism and Matter','Electromagnetic Induction','Alternating Current',
+      'Electromagnetic Waves','Ray Optics and Optical Instruments','Wave Optics',
+      'Dual Nature of Radiation and Matter','Atoms','Nuclei','Semiconductor Electronics',
+    ],
+  },
+  chemistry: {
+    11: [
+      'Some Basic Concepts of Chemistry','Structure of Atom','Classification of Elements and Periodicity in Properties',
+      'Chemical Bonding and Molecular Structure','Chemical Thermodynamics','Equilibrium','Redox Reactions',
+      'Organic Chemistry: Some Basic Principles and Techniques','Hydrocarbons',
+    ],
+    12: [
+      'Solutions','Electrochemistry','Chemical Kinetics','d and f Block Elements','Coordination Compounds',
+      'Haloalkanes and Haloarenes','Alcohols, Phenols and Ethers','Aldehydes, Ketones and Carboxylic Acids',
+      'Amines','Biomolecules',
+    ],
+  },
+  pe: {
+    12: [
+      'Management of Sporting Events','Children and Women in Sports','Yoga as Preventive Measure',
+      'Physical Education and Sports for CWSN','Sports and Nutrition','Test, Measurement and Evaluation',
+      'Physiology and Injuries in Sports','Biomechanics and Sports','Psychology and Sports','Training in Sports',
+    ],
+  },
+};
+
 const DEFAULT_SUBTOPICS = {
   // PHYSICS
   'Kinematics': ['1D Motion','2D Motion','Relative Motion','Projectile Motion'],
@@ -126,8 +190,10 @@ const STORAGE_KEY = 'studyhub_v2_sohum';
 
 function defaultState() {
   return {
-    xp:0, level:1, streak:0, lastStudied:null, studiedDays:[],
-    totalQuestions:0, todayHours:0, comeback:0, bossHp:100, currentBoss:'Kinematics',
+    xp:0, level:1, streak:0, longestStreak:0, lastStudied:null, studiedDays:[],
+    joinDate: new Date().toISOString(),
+    userName: 'Sohum',
+    totalQuestions:0, totalPYQs:0, totalDPPs:0, todayHours:0, comeback:0, bossHp:100, currentBoss:'Kinematics',
     timerRunning:false, selectedSubject:null,
     subjectSeconds:{ physics:0, chemistry:0, maths:0 },
     todaySeconds:0, studyXpToday:0,
@@ -150,6 +216,24 @@ function defaultState() {
     activeTitle: 'JEE Aspirant',
     activeTheme: 'default',
     dayHistory: [], // archive of past days: { date, secondsStudied, tasksCompleted, questsCompleted, questsTotal, dayComplete }
+
+    // ===== PHASE 6: LIFESTYLE + VISION =====
+    sleepLog: {},   // { 'date string': hoursSlept }
+    waterLog: {},   // { 'date string': glassesCount }
+    detoxLog: {},   // { 'date string': true } — days marked as a dopamine-detox win (no doomscrolling etc.)
+    visionBoard: [], // [{ id, text, icon }]
+    futureYouUnlocked: [], // ids of milestone messages already revealed
+    avatarEvolutionStage: 0, // auto-progresses with level, independent of shop-bought avatars
+
+    // ===== MOCK TESTS, QUIZZES, FORMULA SHEET, PYQ/DPP =====
+    pyqCount: { physics:0, chemistry:0, maths:0 },
+    dppCount: { physics:0, chemistry:0, maths:0 },
+    mockTests: [], // [{ id, name, date, syllabus, marks:{physics,chemistry,maths}, maxMarks }]
+    quizHistory: [], // [{ id, date, mode:'practice'|'timed', difficulty, subject, score, total }]
+    monthlyPlans: {}, // { 'YYYY-M': { physics:[chapterName,...4], chemistry:[...4], maths:[...4] } }
+    boardsCompleted: { english:{12:{}}, maths:{11:{},12:{}}, physics:{11:{},12:{}}, chemistry:{11:{},12:{}}, pe:{12:{}} }, // { subject: { classYear: { chapterName: {reading:bool, qa:bool} } } }
+    boardsNotes: {}, // { 'subject-classYear-chapterName': { reading: '', qa: '' } }
+    formulaSheet: [], // [{ id, chapterName, formulas:[{id,text}] }]
   };
 }
 
@@ -308,8 +392,10 @@ function buyShopItem(type, id) {
 function refreshHeroIdentity() {
   const a = document.getElementById('hero-avatar');
   const t = document.getElementById('hero-title-tag');
+  const navIcon = document.getElementById('nav-profile-icon');
   if (a) a.textContent = state.activeAvatar;
   if (t) t.textContent = state.activeTitle;
+  if (navIcon) navIcon.textContent = state.activeAvatar || '🧑‍🎓';
 }
 
 function equipShopItem(type, id) {
@@ -434,24 +520,621 @@ function reconcileChapterFromSubtopics(subj, idx) {
   const anyDone = ch.subtopics.some(s=>s.done);
   if (allDone && ch.status!=='completed') {
     ch.status = 'completed';
-    addXP(100);
     ch.lastRevised = new Date().toLocaleDateString();
     if (!ch.completedDate) {
+      // First-ever full mastery of this chapter — award XP once. completedDate
+      // is never cleared after this, so unchecking/rechecking subtopics later
+      // can re-trigger 'completed' status without re-paying the XP.
+      addXP(100);
       ch.completedDate = new Date().toISOString();
       ch.revisionSchedule = buildRevisionSchedule(ch.completedDate);
+      questsChaptersCompletedToday++;
+      checkQuestClaims();
+      showToast('🌳', `${ch.name} fully mastered! +100 XP`);
+    } else {
+      showToast('🌳', `${ch.name} fully mastered again (already earned XP for this one).`);
     }
-    questsChaptersCompletedToday++;
-    checkQuestClaims();
-    showToast('🌳', `${ch.name} fully mastered! +100 XP`);
   } else if (!allDone && ch.status==='completed') {
     ch.status = anyDone ? 'in-progress' : 'not-started';
-    ch.completedDate = null;
     ch.revisionSchedule = [];
   } else if (anyDone && ch.status==='not-started') {
     ch.status = 'in-progress';
   }
 }
 
+
+// ===== LIFESTYLE TRACKER =====
+function todayKey() { return new Date().toDateString(); }
+
+function adjustSleep(delta) {
+  const key = todayKey();
+  const current = state.sleepLog[key] || 0;
+  state.sleepLog[key] = Math.max(0, Math.min(14, current + delta));
+  document.getElementById('sleep-value').textContent = state.sleepLog[key];
+  save();
+}
+
+function adjustWater(delta) {
+  const key = todayKey();
+  const current = state.waterLog[key] || 0;
+  state.waterLog[key] = Math.max(0, Math.min(20, current + delta));
+  document.getElementById('water-value').textContent = state.waterLog[key];
+  if (state.waterLog[key] >= 8 && current < 8) { addXP(10); showToast('💧','8 glasses! +10 XP for staying hydrated'); }
+  save();
+}
+
+function toggleDetox() {
+  const key = todayKey();
+  const isMarked = !!state.detoxLog[key];
+  if (isMarked) { delete state.detoxLog[key]; }
+  else { state.detoxLog[key] = true; addXP(20); showToast('📵','Clean day logged! +20 XP'); }
+  renderLifestyleWidget();
+  save();
+}
+
+// ===== PYQ / DPP TRACKER =====
+function adjustPyq(subj, delta) {
+  state.pyqCount[subj] = Math.max(0, (state.pyqCount[subj]||0) + delta);
+  questsSolvedToday += delta>0 ? 1 : 0;
+  renderPyqDppWidget();
+  checkQuestClaims();
+  save();
+}
+
+function adjustDpp(subj, delta) {
+  state.dppCount[subj] = Math.max(0, (state.dppCount[subj]||0) + delta);
+  questsSolvedToday += delta>0 ? 1 : 0;
+  renderPyqDppWidget();
+  checkQuestClaims();
+  save();
+}
+
+function renderPyqDppWidget() {
+  let total = 0;
+  ['physics','chemistry','maths'].forEach(s=>{
+    const pyqEl = document.getElementById('pyq-'+s);
+    const dppEl = document.getElementById('dpp-'+s);
+    if (pyqEl) pyqEl.textContent = state.pyqCount[s]||0;
+    if (dppEl) dppEl.textContent = state.dppCount[s]||0;
+    total += (state.pyqCount[s]||0) + (state.dppCount[s]||0);
+  });
+  const totalEl = document.getElementById('pyq-dpp-total');
+  if (totalEl) totalEl.textContent = total;
+}
+
+// ===== MOCK TEST DASHBOARD =====
+function addMockTest() {
+  const name = document.getElementById('mock-name').value.trim();
+  const date = document.getElementById('mock-date').value || new Date().toISOString().slice(0,10);
+  const syllabus = document.getElementById('mock-syllabus').value.trim();
+  const phy = parseFloat(document.getElementById('mock-phy').value) || 0;
+  const chem = parseFloat(document.getElementById('mock-chem').value) || 0;
+  const math = parseFloat(document.getElementById('mock-math').value) || 0;
+  const maxMarks = parseFloat(document.getElementById('mock-max').value) || 300;
+  if (!name) { showToast('⚠️','Give the test a name first!'); return; }
+  state.mockTests.push({ id:'mock'+Date.now(), name, date, syllabus, marks:{physics:phy,chemistry:chem,maths:math}, maxMarks });
+  state.mockTests.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  ['mock-name','mock-date','mock-syllabus','mock-phy','mock-chem','mock-math','mock-max'].forEach(id=>document.getElementById(id).value='');
+  addXP(40);
+  showToast('📊','Mock test logged! +40 XP');
+  save(); renderMockTests();
+}
+
+function deleteMockTest(id) {
+  state.mockTests = state.mockTests.filter(m=>m.id!==id);
+  save(); renderMockTests();
+}
+
+function renderMockTests() {
+  const listEl = document.getElementById('mock-test-list');
+  if (state.mockTests.length===0) {
+    listEl.innerHTML = '<div class="revision-empty">No mock tests logged yet. Add your first one above.</div>';
+  } else {
+    listEl.innerHTML = state.mockTests.slice().reverse().map(m=>{
+      const total = m.marks.physics+m.marks.chemistry+m.marks.maths;
+      const pct = Math.round((total/m.maxMarks)*100);
+      return `<div class="card mb-16">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:700;font-size:0.9rem">${m.name}</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-bottom:8px">${new Date(m.date).toLocaleDateString()}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'Orbitron',monospace;font-weight:700;font-size:1.1rem;color:${pct>=70?'var(--accent4)':pct>=50?'var(--accent3)':'var(--danger)'}">${total}/${m.maxMarks}</div>
+            <div style="font-size:0.7rem;color:var(--muted)">${pct}%</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0;font-size:0.78rem;text-align:center;color:var(--muted)">
+          <div>⚛️ ${m.marks.physics}</div><div>🧪 ${m.marks.chemistry}</div><div>📐 ${m.marks.maths}</div>
+        </div>
+        ${m.syllabus?`<div style="font-size:0.72rem;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;margin-top:6px">📋 Syllabus: ${m.syllabus}</div>`:''}
+        <button class="skill-subnode-del" style="margin-top:8px" onclick="deleteMockTest('${m.id}')">🗑️ Delete</button>
+      </div>`;
+    }).join('');
+  }
+  renderMockTrendChart();
+  renderMockPredictor();
+}
+
+function renderMockTrendChart() {
+  if (charts.mock) charts.mock.destroy();
+  const canvas = document.getElementById('mockTrendChart');
+  if (!canvas) return;
+  const tests = state.mockTests;
+  const cd = {plugins:{legend:{labels:{color:'#94a3b8',font:{family:'Inter'}}}}};
+  charts.mock = new Chart(canvas, {
+    type:'line',
+    data:{
+      labels: tests.map(m=>new Date(m.date).toLocaleDateString('default',{month:'short',day:'numeric'})),
+      datasets:[{
+        label:'Score %',
+        data: tests.map(m=>Math.round(((m.marks.physics+m.marks.chemistry+m.marks.maths)/m.maxMarks)*100)),
+        borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,0.15)', fill:true, tension:0.3,
+      }]
+    },
+    options:{...cd, scales:{x:{ticks:{color:'#64748b'},grid:{color:'#1e1e2e'}},y:{ticks:{color:'#64748b'},grid:{color:'#1e1e2e'},min:0,max:100}}}
+  });
+}
+
+function renderMockPredictor() {
+  const el = document.getElementById('mock-predictor-card');
+  const tests = state.mockTests;
+  if (tests.length<2) { el.innerHTML = '<div class="revision-empty">Log at least 2 mock tests to see a trend-based prediction.</div>'; return; }
+  const pcts = tests.map(m=>((m.marks.physics+m.marks.chemistry+m.marks.maths)/m.maxMarks)*100);
+  // Simple linear regression over test index to project trend toward JEE date
+  const n = pcts.length;
+  const xMean = (n-1)/2, yMean = pcts.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  pcts.forEach((y,x)=>{ num += (x-xMean)*(y-yMean); den += (x-xMean)**2; });
+  const slope = den===0 ? 0 : num/den;
+  const daysSinceFirst = (new Date(tests[n-1].date) - new Date(tests[0].date)) / (1000*60*60*24) || 1;
+  const testsPerDay = n / Math.max(1,daysSinceFirst);
+  const jee = new Date('2027-01-15');
+  const daysRemaining = Math.max(0,(jee-new Date())/(1000*60*60*24));
+  const projectedTestsRemaining = Math.round(testsPerDay * daysRemaining);
+  const projectedPct = Math.max(0, Math.min(100, pcts[n-1] + slope * projectedTestsRemaining));
+  const trendIcon = slope>0.5 ? '📈' : slope<-0.5 ? '📉' : '➡️';
+  el.innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:6px">Projected score by JEE (based on your trend)</div>
+      <div style="font-family:'Orbitron',monospace;font-weight:700;font-size:1.8rem;color:var(--accent3)">${projectedPct.toFixed(1)}%</div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:6px">${trendIcon} Trend: ${slope>0?'+':''}${slope.toFixed(1)}% per test</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:10px">This is a simple trend projection from your own ${n} mocks — not an official prediction. Keep logging tests for a more accurate picture.</div>
+    </div>`;
+}
+
+// ===== QUIZ QUESTION BANK =====
+// q: question text, options: 4 choices, correct: index (0-3)
+const QUIZ_BANK = {
+  physics: {
+    easy: [
+      {chapter:'Laws of Motion (NLM)', q:'What is the SI unit of force?', options:['Joule','Newton','Watt','Pascal'], correct:1},
+      {chapter:'Laws of Motion (NLM)', q:'A body at rest has zero:', options:['Mass','Velocity','Weight','Volume'], correct:1},
+      {chapter:'Gravitation', q:'Acceleration due to gravity on Earth is approximately:', options:['8.9 m/s²','9.8 m/s²','10.8 m/s²','11.2 m/s²'], correct:1},
+      {chapter:'Kinematics', q:'Which quantity is a vector?', options:['Speed','Distance','Displacement','Energy'], correct:2},
+      {chapter:'Current Electricity', q:'The SI unit of power is:', options:['Joule','Newton','Watt','Pascal'], correct:2},
+      {chapter:'Work Energy Power', q:'Work done is zero when force and displacement are:', options:['Parallel','Perpendicular','Opposite','Equal'], correct:1},
+      {chapter:'Fluid Mechanics', q:'The SI unit of pressure is:', options:['Newton','Pascal','Joule','Watt'], correct:1},
+      {chapter:'Fluid Mechanics', q:'Which has the highest density?', options:['Wood','Water','Iron','Air'], correct:2},
+      {chapter:'Waves & Sound', q:'The unit of frequency is:', options:['Second','Hertz','Meter','Newton'], correct:1},
+      {chapter:'Kinematics', q:'A freely falling object has acceleration that is:', options:['Zero','Constant','Increasing','Decreasing'], correct:1},
+      {chapter:'Kinematics', q:'Mass is measured in:', options:['Newton','Kilogram','Joule','Watt'], correct:1},
+      {chapter:'Kinematics', q:'Which of these is a scalar quantity?', options:['Velocity','Force','Speed','Acceleration'], correct:2},
+      {chapter:'Laws of Motion (NLM)', q:'The reaction force in Newton\'s third law is:', options:['Equal and same direction','Equal and opposite direction','Smaller and opposite','Larger and same direction'], correct:1},
+      {chapter:'Waves & Sound', q:'Sound cannot travel through:', options:['Air','Water','Vacuum','Solids'], correct:2},
+      {chapter:'Work Energy Power', q:'The energy possessed by a moving object is called:', options:['Potential energy','Kinetic energy','Heat energy','Chemical energy'], correct:1},
+      {chapter:'Centre of Mass', q:'The centre of mass of two equal masses lies:', options:['Closer to one mass','At either mass','Exactly midway','Outside the system'], correct:2},
+      {chapter:'Electrostatics', q:'Like charges:', options:['Attract each other','Repel each other','Have no effect','Cancel out'], correct:1},
+      {chapter:'EMI & AC', q:'The phenomenon of generating EMF due to changing magnetic flux is called:', options:['Polarization','Electromagnetic induction','Refraction','Diffraction'], correct:1},
+      {chapter:'Elasticity', q:'A material that returns to its original shape after the force is removed is called:', options:['Plastic','Elastic','Rigid','Brittle'], correct:1},
+      {chapter:'Surface Tension', q:'Surface tension is the property of a liquid due to which it behaves like a:', options:['Solid','Stretched membrane','Gas','Plasma'], correct:1},
+    ],
+    mid: [
+      {chapter:'Kinematics', q:'A ball is thrown vertically up with speed u. Time to reach max height is:', options:['u/g','2u/g','u/2g','g/u'], correct:0},
+      {chapter:'Kinematics', q:'For a body in uniform circular motion, which is constant?', options:['Velocity','Speed','Acceleration direction','Displacement'], correct:1},
+      {chapter:'Rotational Motion', q:'The moment of inertia of a ring about its axis is:', options:['MR²','½MR²','⅖MR²','⅔MR²'], correct:0},
+      {chapter:'Work Energy Power', q:'In an elastic collision between equal masses (one initially at rest), the moving mass:', options:['Stops','Continues at same speed','Reverses direction','Doubles speed'], correct:0},
+      {chapter:'Work Energy Power', q:'The work-energy theorem states that work done equals:', options:['Change in momentum','Change in kinetic energy','Change in potential energy','Change in force'], correct:1},
+      {chapter:'Simple Harmonic Motion', q:'A spring obeys Hooke\'s law when force is:', options:['Proportional to extension','Inversely proportional to extension','Constant','Proportional to extension squared'], correct:0},
+      {chapter:'Gravitation', q:'The escape velocity from Earth is approximately:', options:['7.9 km/s','9.8 km/s','11.2 km/s','15 km/s'], correct:2},
+      {chapter:'Simple Harmonic Motion', q:'A body in SHM has maximum acceleration at:', options:['Mean position','Extreme position','Quarter position','It is always constant'], correct:1},
+      {chapter:'Fluid Mechanics', q:'The buoyant force on a floating object equals:', options:['Weight of object','Weight of displaced fluid','Volume of object','Density of fluid'], correct:1},
+      {chapter:'Kinematics', q:'For a projectile, the range is maximum at launch angle:', options:['30°','45°','60°','90°'], correct:1},
+      {chapter:'Current Electricity', q:'The power dissipated in a resistor R carrying current I is:', options:['IR','I²R','I/R','I²/R'], correct:1},
+      {chapter:'Optics', q:'In Young\'s double slit experiment, fringe width is proportional to:', options:['Wavelength','1/Wavelength','Slit width','Slit separation'], correct:0},
+      {chapter:'Centre of Mass', q:'For an isolated system with no external force, the velocity of centre of mass:', options:['Always increases','Always decreases','Remains constant','Becomes zero'], correct:2},
+      {chapter:'Electrostatics', q:'The electric field due to an infinite line charge varies with distance r as:', options:['1/r','1/r²','r','constant'], correct:0},
+      {chapter:'EMI & AC', q:'Lenz\'s law is a consequence of conservation of:', options:['Charge','Momentum','Energy','Mass'], correct:2},
+      {chapter:'Surface Tension', q:'The excess pressure inside a liquid drop of radius r is given by:', options:['2T/r','T/r','4T/r','T/2r'], correct:0},
+    ],
+    hard: [
+      {chapter:'Kinematics', q:'A particle moves such that its position is x = t³ - 6t² + 9t. At what time is velocity zero?', options:['t=1,3','t=0,2','t=1,2','t=2,3'], correct:0},
+      {chapter:'Rotational Motion', q:'A disc and a ring of same mass and radius roll down an incline. Which reaches the bottom first?', options:['Disc','Ring','Both together','Depends on incline angle'], correct:0},
+      {chapter:'Laws of Motion (NLM)', q:'In a system of two blocks connected by a string over a pulley (Atwood machine) with masses m1>m2, the acceleration is:', options:['(m1-m2)g/(m1+m2)','(m1+m2)g/(m1-m2)','m1g/m2','g'], correct:0},
+      {chapter:'Magnetic Effects', q:'A charged particle moves in a magnetic field B with velocity v perpendicular to B. Its path is:', options:['Straight line','Parabola','Circle','Ellipse'], correct:2},
+      {chapter:'Gravitation', q:'For a satellite in circular orbit, if radius is doubled, orbital speed becomes:', options:['Same','Half','1/√2 times','√2 times'], correct:2},
+      {chapter:'Electrostatics', q:'Two capacitors C and 2C are connected in series then in parallel. The ratio of equivalent capacitances (series:parallel) is:', options:['1:4.5','2:3','1:9','2:9'], correct:2},
+      {chapter:'Laws of Motion (NLM)', q:'A ladder leans against a wall in equilibrium. The friction force at the wall acts:', options:['Always upward','Always downward','Depends on the normal forces','Zero if wall is frictionless'], correct:3},
+      {chapter:'Thermodynamics', q:'In a Carnot engine operating between 400K and 300K, the efficiency is:', options:['25%','75%','33%','50%'], correct:0},
+      {chapter:'Optics', q:'A convex lens of focal length f produces a real image when object distance is:', options:['Less than f','Equal to f','Greater than f','Equal to 2f only'], correct:2},
+      {chapter:'Modern Physics', q:'The de Broglie wavelength of a particle is inversely proportional to its:', options:['Charge','Mass','Momentum','Energy'], correct:2},
+      {chapter:'Centre of Mass', q:'The centre of mass of a uniform rod lies at:', options:['One end','Midpoint','Quarter point','Depends on material'], correct:1},
+      {chapter:'Electrostatics', q:'Electric field inside a charged conductor in equilibrium is:', options:['Maximum','Zero','Equal to surface field','Infinite'], correct:1},
+      {chapter:'EMI & AC', q:'In a purely inductive AC circuit, current:', options:['Leads voltage by 90°','Lags voltage by 90°','Is in phase with voltage','Leads by 45°'], correct:1},
+      {chapter:'Elasticity', q:'Young\'s modulus is defined as the ratio of:', options:['Stress to strain','Strain to stress','Force to area','Force to extension'], correct:0},
+    ],
+  },
+  chemistry: {
+    easy: [
+      {chapter:'Atomic Structure', q:'The atomic number of an element represents the number of:', options:['Neutrons','Protons','Electrons + Neutrons','Protons + Neutrons'], correct:1},
+      {chapter:'Periodic Table & Properties', q:'Which is a noble gas?', options:['Nitrogen','Oxygen','Argon','Hydrogen'], correct:2},
+      {chapter:'Equilibrium', q:'The pH of a neutral solution at 25°C is:', options:['0','7','14','1'], correct:1},
+      {chapter:'Thermodynamics (Chem)', q:'Which of these is an exothermic process?', options:['Melting ice','Boiling water','Combustion','Sublimation of dry ice'], correct:2},
+      {chapter:'Mole Concept', q:'The chemical formula of table salt is:', options:['NaOH','NaCl','KCl','CaCl₂'], correct:1},
+      {chapter:'Atomic Structure', q:'Isotopes of an element have the same number of:', options:['Neutrons','Protons','Nucleons','Mass number'], correct:1},
+      {chapter:'p-Block Elements', q:'Which gas is most abundant in Earth\'s atmosphere?', options:['Oxygen','Carbon dioxide','Nitrogen','Argon'], correct:2},
+      {chapter:'d & f Block', q:'The chemical symbol for gold is:', options:['Go','Gd','Au','Ag'], correct:2},
+      {chapter:'Equilibrium', q:'Which of these is an acid?', options:['NaOH','HCl','KOH','NH₃'], correct:1},
+      {chapter:'Equilibrium', q:'A solution with pH less than 7 is:', options:['Basic','Neutral','Acidic','Amphoteric'], correct:2},
+      {chapter:'Atomic Structure', q:'The number of electrons in a neutral hydrogen atom is:', options:['0','1','2','3'], correct:1},
+      {chapter:'d & f Block', q:'Which is a metal?', options:['Sulfur','Carbon','Iron','Oxygen'], correct:2},
+      {chapter:'Electrochemistry', q:'Rusting of iron is an example of:', options:['Reduction','Oxidation','Sublimation','Neutralization'], correct:1},
+      {chapter:'Periodic Table & Properties', q:'The most electronegative element is:', options:['Oxygen','Fluorine','Chlorine','Nitrogen'], correct:1},
+      {chapter:'Periodic Table & Properties', q:'Which has the smallest atomic radius?', options:['Na','Mg','Al','Cl'], correct:3},
+      {chapter:'Solutions', q:'A solution containing the maximum amount of solute at a given temperature is called:', options:['Dilute','Saturated','Unsaturated','Supersaturated'], correct:1},
+      {chapter:'Coordination Compounds', q:'In [Cu(NH₃)₄]²⁺, NH₃ acts as a:', options:['Ligand','Counter ion','Solvent','Catalyst'], correct:0},
+      {chapter:'Aldehydes Ketones', q:'Aldehydes and ketones both contain which functional group?', options:['Hydroxyl','Carbonyl','Carboxyl','Amino'], correct:1},
+      {chapter:'Amines', q:'Amines are derivatives of:', options:['Ammonia','Water','Methane','Benzene'], correct:0},
+      {chapter:'Biomolecules', q:'Which of these is a carbohydrate?', options:['Glucose','Glycine','Cholesterol','Insulin'], correct:0},
+      {chapter:'Surface Chemistry', q:'The phenomenon of accumulation of a substance at a surface is called:', options:['Absorption','Adsorption','Diffusion','Osmosis'], correct:1},
+    ],
+    mid: [
+      {chapter:'Chemical Bonding', q:'According to VSEPR theory, the shape of NH₃ molecule is:', options:['Linear','Trigonal planar','Pyramidal','Tetrahedral'], correct:2},
+      {chapter:'Periodic Table & Properties', q:'Which has the highest first ionization energy?', options:['Na','Mg','Al','Cl'], correct:3},
+      {chapter:'Chemical Bonding', q:'The hybridization of carbon in ethyne (C₂H₂) is:', options:['sp','sp²','sp³','sp³d'], correct:0},
+      {chapter:'Chemical Kinetics', q:'For a first order reaction, the unit of rate constant k is:', options:['mol L⁻¹ s⁻¹','s⁻¹','L mol⁻¹ s⁻¹','mol² L⁻² s⁻¹'], correct:1},
+      {chapter:'p-Block Elements', q:'Which is the strongest acid among the following?', options:['HF','HCl','HBr','HI'], correct:3},
+      {chapter:'d & f Block', q:'The oxidation state of Mn in KMnO₄ is:', options:['+5','+6','+7','+4'], correct:2},
+      {chapter:'Chemical Bonding', q:'Which is an example of a Lewis acid?', options:['NH₃','BF₃','H₂O','OH⁻'], correct:1},
+      {chapter:'Chemical Bonding', q:'The number of sigma and pi bonds in CO₂ are:', options:['2σ, 2π','1σ, 3π','3σ, 1π','4σ, 0π'], correct:0},
+      {chapter:'Hydrocarbons', q:'Which of these shows maximum boiling point due to hydrogen bonding?', options:['CH₄','NH₃','H₂O','HF'], correct:2},
+      {chapter:'Equilibrium', q:'The conjugate base of H₂O is:', options:['H₃O⁺','OH⁻','H⁺','O²⁻'], correct:1},
+      {chapter:'d & f Block', q:'Which element shows maximum number of oxidation states?', options:['Fe','Mn','Cr','Cu'], correct:1},
+      {chapter:'Mole Concept', q:'For an ideal gas, PV=nRT. If T is doubled at constant P, V becomes:', options:['Same','Half','Double','Quadruple'], correct:2},
+      {chapter:'Solutions', q:'According to Raoult\'s law, the relative lowering of vapor pressure equals:', options:['Mole fraction of solvent','Mole fraction of solute','Molarity of solute','Molality of solute'], correct:1},
+      {chapter:'Coordination Compounds', q:'The coordination number of Co in [Co(NH₃)₆]³⁺ is:', options:['4','6','8','2'], correct:1},
+      {chapter:'Aldehydes Ketones', q:'The Cannizzaro reaction occurs with aldehydes that:', options:['Have alpha hydrogen','Lack alpha hydrogen','Are aromatic only','Are unsaturated only'], correct:1},
+      {chapter:'Amines', q:'Aniline is a weaker base than methylamine because:', options:['Of resonance delocalizing the lone pair','Of higher molecular weight','It is aromatic','It has no lone pair'], correct:0},
+      {chapter:'Biomolecules', q:'Proteins are polymers of:', options:['Glucose units','Amino acids','Fatty acids','Nucleotides'], correct:1},
+      {chapter:'Surface Chemistry', q:'Physisorption, unlike chemisorption, is characterized by:', options:['High enthalpy of adsorption','Irreversibility','Low enthalpy of adsorption','Monolayer formation only'], correct:2},
+    ],
+    hard: [
+      {chapter:'Haloalkanes', q:'In the reaction sequence, which carbocation is most stable?', options:['Methyl','Primary','Secondary','Tertiary'], correct:3},
+      {chapter:'d & f Block', q:'The number of unpaired electrons in Fe³⁺ (d⁵) high spin configuration is:', options:['1','3','5','0'], correct:2},
+      {chapter:'Equilibrium', q:'For the equilibrium N₂+3H₂⇌2NH₃, increasing pressure shifts equilibrium toward:', options:['Reactants','Products','No change','Depends on temperature'], correct:1},
+      {chapter:'Organic Basics & IUPAC', q:'Which compound shows optical isomerism?', options:['CH₃CH₂OH','CH₃CHClCOOH','CH₃COOH','CH₃CH₃'], correct:1},
+      {chapter:'Atomic Structure', q:'The de Broglie wavelength of an electron accelerated through potential V is proportional to:', options:['V','1/V','√V','1/√V'], correct:3},
+      {chapter:'Solid State', q:'Which has the highest lattice energy?', options:['NaCl','MgO','KCl','CaO'], correct:1},
+      {chapter:'Haloalkanes', q:'In SN1 reaction, the rate depends on:', options:['Concentration of substrate only','Concentration of nucleophile only','Both substrate and nucleophile','Neither'], correct:0},
+      {chapter:'Alcohols Phenols Ethers', q:'The IUPAC name of CH₃-CH(OH)-CH₃ is:', options:['Propan-1-ol','Propan-2-ol','Propanal','Propanoic acid'], correct:1},
+      {chapter:'d & f Block', q:'Which has maximum magnetic moment?', options:['Sc³⁺','Ti³⁺','V³⁺','Cr³⁺'], correct:3},
+      {chapter:'Electrochemistry', q:'The number of moles of KMnO₄ needed to oxidize 1 mole of Fe²⁺ to Fe³⁺ in acidic medium is:', options:['1/5','1','5','1/3'], correct:0},
+      {chapter:'Solutions', q:'For a binary solution showing positive deviation from Raoult\'s law, the boiling point:', options:['Increases','Decreases','Remains same','Cannot be determined'], correct:1},
+      {chapter:'Coordination Compounds', q:'According to crystal field theory, the splitting in an octahedral field is denoted by Δ₀. For a tetrahedral field, Δₜ equals approximately:', options:['Δ₀','(4/9)Δ₀','2Δ₀','(9/4)Δ₀'], correct:1},
+      {chapter:'Aldehydes Ketones', q:'In the haloform reaction, acetaldehyde reacts with excess NaOH/I₂ to give:', options:['Iodoform','Acetic acid','Acetone','Ethanol'], correct:0},
+      {chapter:'Amines', q:'The Hinsberg test distinguishes between primary, secondary, and tertiary amines based on:', options:['Solubility in water','Reaction with benzenesulfonyl chloride','Boiling point','Color change with FeCl₃'], correct:1},
+      {chapter:'Biomolecules', q:'The secondary structure of proteins is stabilized mainly by:', options:['Ionic bonds','Hydrogen bonds','Disulfide bonds','Van der Waals forces'], correct:1},
+    ],
+  },
+  maths: {
+    easy: [
+      {chapter:'Trigonometry', q:'The value of sin(90°) is:', options:['0','1','-1','undefined'], correct:1},
+      {chapter:'Straight Lines', q:'If a line has slope 0, it is:', options:['Vertical','Horizontal','Diagonal','Undefined'], correct:1},
+      {chapter:'Differentiation', q:'The derivative of x² is:', options:['x','2x','x²','2'], correct:1},
+      {chapter:'Sequences & Series', q:'The sum of first n natural numbers is:', options:['n(n+1)','n(n+1)/2','n²','n(n-1)/2'], correct:1},
+      {chapter:'Permutation Combination', q:'How many ways can 3 people be arranged in a row?', options:['3','6','9','1'], correct:1},
+      {chapter:'Complex Numbers', q:'The value of i² (where i=√-1) is:', options:['1','-1','i','0'], correct:1},
+      {chapter:'Trigonometry', q:'The value of cos(0°) is:', options:['0','1','-1','undefined'], correct:1},
+      {chapter:'Sets Relations Functions', q:'If f(x)=x+5, then f(0) equals:', options:['0','5','-5','1'], correct:1},
+      {chapter:'Straight Lines', q:'The number of diagonals in a pentagon is:', options:['3','5','7','10'], correct:1},
+      {chapter:'Quadratic Equations', q:'The roots of x²-4=0 are:', options:['±1','±2','±4','0,4'], correct:1},
+      {chapter:'Differentiation', q:'log(1) equals:', options:['0','1','10','undefined'], correct:0},
+      {chapter:'Straight Lines', q:'The slope of a line parallel to the x-axis is:', options:['Undefined','0','1','-1'], correct:1},
+      {chapter:'Permutation Combination', q:'5! (5 factorial) equals:', options:['20','60','120','24'], correct:2},
+      {chapter:'Straight Lines', q:'The midpoint of (0,0) and (4,6) is:', options:['(2,3)','(4,6)','(1,1.5)','(2,6)'], correct:0},
+      {chapter:'Probability', q:'If P(A)=0.5, then P(not A) equals:', options:['0','0.5','1','-0.5'], correct:1},
+      {chapter:'3D Geometry', q:'The distance of a point (x,y,z) from the origin is:', options:['x+y+z','√(x²+y²+z²)','x²+y²+z²','xyz'], correct:1},
+      {chapter:'Vectors', q:'The magnitude of vector (3,4,0) is:', options:['3','4','5','7'], correct:2},
+      {chapter:'Mathematical Reasoning', q:'The negation of the statement "It is raining" is:', options:['It is sunny','It is not raining','It might rain','It was raining'], correct:1},
+      {chapter:'Statistics', q:'The mean of 2, 4, 6, 8, 10 is:', options:['5','6','7','8'], correct:1},
+    ],
+    mid: [
+      {chapter:'Quadratic Equations', q:'The number of real roots of x²+1=0 is:', options:['0','1','2','Infinite'], correct:0},
+      {chapter:'Integration', q:'∫x dx equals:', options:['x','x²','x²/2 + C','2x + C'], correct:2},
+      {chapter:'Circles', q:'The eccentricity of a circle is:', options:['0','1','>1','<0'], correct:0},
+      {chapter:'Probability', q:'If A and B are independent events, P(A∩B) equals:', options:['P(A)+P(B)','P(A)-P(B)','P(A)×P(B)','P(A)/P(B)'], correct:2},
+      {chapter:'Binomial Theorem', q:'The number of terms in the expansion of (x+y)ⁿ is:', options:['n','n+1','n-1','2n'], correct:1},
+      {chapter:'Differential Equations', q:'The general solution of dy/dx = y is:', options:['y=Ce^x','y=Cx','y=Ce^-x','y=x+C'], correct:0},
+      {chapter:'Straight Lines', q:'The distance between points (1,2) and (4,6) is:', options:['3','4','5','7'], correct:2},
+      {chapter:'Permutation Combination', q:'The number of ways to choose 2 items from 5 distinct items is:', options:['10','20','5','15'], correct:0},
+      {chapter:'Trigonometry', q:'If tan θ = 1, then θ equals (in first quadrant):', options:['30°','45°','60°','90°'], correct:1},
+      {chapter:'Sequences & Series', q:'The sum to infinity of a GP with first term a and ratio r (|r|<1) is:', options:['a/(1-r)','a/(1+r)','a(1-r)','ar'], correct:0},
+      {chapter:'Differentiation', q:'The derivative of sin(x) is:', options:['cos(x)','-cos(x)','-sin(x)','tan(x)'], correct:0},
+      {chapter:'Sets Relations Functions', q:'The number of solutions of |x|=3 is:', options:['1','2','0','3'], correct:1},
+      {chapter:'3D Geometry', q:'Two lines with direction ratios (1,2,3) and (2,4,6) are:', options:['Perpendicular','Parallel','Skew','Intersecting at origin only'], correct:1},
+      {chapter:'Vectors', q:'If a·b = 0 for nonzero vectors a and b, they are:', options:['Parallel','Perpendicular','Equal','Opposite'], correct:1},
+      {chapter:'Mathematical Reasoning', q:'A statement that is always true regardless of truth values is called a:', options:['Contradiction','Tautology','Contingency','Negation'], correct:1},
+      {chapter:'Statistics', q:'The variance of a data set measures:', options:['Central tendency','Spread of data','Total of data','Mode of data'], correct:1},
+    ],
+    hard: [
+      {chapter:'Complex Numbers', q:'If z = x+iy and |z-1| = |z+1|, the locus of z is:', options:['x-axis','y-axis','Circle','Parabola'], correct:1},
+      {chapter:'Permutation Combination', q:'The number of ways to select 3 letters from the word "EQUATION" such that at least one vowel is included:', options:['56','52','50','54'], correct:0},
+      {chapter:'Conic Sections', q:'The equation of the tangent to the parabola y²=4ax at point (at², 2at) is:', options:['ty=x+at²','x=ty+at²','ty=x-at²','x+ty=at²'], correct:0},
+      {chapter:'Limits Continuity', q:'lim(x→0) (sin3x)/x equals:', options:['1','3','0','1/3'], correct:1},
+      {chapter:'Integration', q:'The area enclosed by |x|+|y|=1 is:', options:['1','2','4','√2'], correct:1},
+      {chapter:'Straight Lines', q:'If the lines 2x+3y=5 and 3x-2y=7 are perpendicular condition check: their product of slopes is:', options:['1','-1','0','undefined'], correct:1},
+      {chapter:'Permutation Combination', q:'The number of ways to arrange the letters of "MISSISSIPPI" is:', options:['11!/(4!4!2!)','11!','11!/4!','11!/(4!2!)'], correct:0},
+      {chapter:'Differential Equations', q:'The differential equation of all circles passing through origin with centers on x-axis is:', options:['(x²-y²)dy=2xy dx','y²dx=2xy dy','(x²+y²)dx=2xy dy','2xy dx=y²dy'], correct:0},
+      {chapter:'Matrices Determinants', q:'If A is a 3×3 matrix with |A|=5, then |2A| equals:', options:['10','20','40','5'], correct:2},
+      {chapter:'Sequences & Series', q:'The sum of the series 1²+2²+3²+...+n² is:', options:['n(n+1)/2','n(n+1)(2n+1)/6','n²(n+1)²/4','n(n+1)(n+2)/6'], correct:1},
+      {chapter:'3D Geometry', q:'The shortest distance between two skew lines is found using:', options:['Dot product only','Cross product of direction vectors','Sum of direction vectors','Angle bisector'], correct:1},
+      {chapter:'Vectors', q:'The volume of a parallelepiped with edges a, b, c is given by:', options:['a·(b×c)','a×(b·c)','(a×b)·(a×c)','a·b·c'], correct:0},
+      {chapter:'Mathematical Reasoning', q:'For statements p and q, "p→q" is logically equivalent to:', options:['p∧q','¬p∨q','p∨q','¬p∧¬q'], correct:1},
+      {chapter:'Statistics', q:'For a frequency distribution, the formula for variance using assumed mean involves:', options:['Only the mean','Step deviation method','Only the mode','Only the median'], correct:1},
+    ],
+  },
+};
+
+let activeQuiz = null; // { subject, difficulty, mode, questions, currentIdx, score, selectedAnswer, timerInterval, timeLeft }
+let activeQuizMode = 'practice';
+
+function setQuizMode(mode) {
+  document.getElementById('mode-practice').classList.toggle('active', mode==='practice');
+  document.getElementById('mode-timed').classList.toggle('active', mode==='timed');
+  activeQuizMode = mode;
+}
+
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+let lastQuizQuestionTexts = {}; // key: 'subject-chapter-difficulty', value: array of question texts shown last time
+
+function populateQuizChapterDropdown() {
+  const subject = document.getElementById('quiz-subject').value;
+  const sel = document.getElementById('quiz-chapter');
+  // Collect every chapter name that actually has at least one question, across all difficulties for this subject
+  const chaptersWithQuestions = new Set();
+  ['easy','mid','hard'].forEach(diff=>{
+    (QUIZ_BANK[subject][diff]||[]).forEach(q=>{ if (q.chapter) chaptersWithQuestions.add(q.chapter); });
+  });
+  const chapterList = state.chapters[subject].map(c=>c.name).filter(name=>chaptersWithQuestions.has(name));
+  sel.innerHTML = '<option value="">All Chapters</option>' + chapterList.map(name=>`<option value="${name}">${name}</option>`).join('');
+}
+
+function startQuiz() {
+  const subject = document.getElementById('quiz-subject').value;
+  const difficulty = document.getElementById('quiz-difficulty').value;
+  const chapter = document.getElementById('quiz-chapter').value; // '' means all chapters
+  let bank = QUIZ_BANK[subject][difficulty];
+  if (chapter) bank = bank.filter(q=>q.chapter===chapter);
+  if (!bank || bank.length===0) {
+    showToast('⚠️', chapter ? `No ${difficulty} questions for ${chapter} yet — try "All Chapters" or another difficulty.` : 'No questions available for this combo yet.');
+    return;
+  }
+  const key = subject+'-'+(chapter||'all')+'-'+difficulty;
+  const lastSet = lastQuizQuestionTexts[key] || [];
+  // Prefer questions NOT shown last time, so back-to-back attempts on the same
+  // subject+chapter+difficulty feel different. If the bank is too small to fully
+  // avoid repeats, fill in with whatever's left after shuffling.
+  const fresh = shuffleArray(bank.filter(q=>!lastSet.includes(q.q)));
+  const repeats = shuffleArray(bank.filter(q=>lastSet.includes(q.q)));
+  const questions = [...fresh, ...repeats].slice(0, Math.min(10, bank.length));
+  lastQuizQuestionTexts[key] = questions.map(q=>q.q);
+  activeQuiz = { subject, chapter, difficulty, mode:activeQuizMode, questions, currentIdx:0, score:0, selectedAnswer:null, timerInterval:null, timeLeft: difficulty==='hard'?180:difficulty==='mid'?120:90 };
+  document.getElementById('quiz-setup').style.display='none';
+  document.getElementById('quiz-results').style.display='none';
+  document.getElementById('quiz-active').style.display='block';
+  document.getElementById('quiz-timer-pill').style.display = activeQuiz.mode==='timed' ? 'inline' : 'none';
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  const quiz = activeQuiz;
+  const q = quiz.questions[quiz.currentIdx];
+  document.getElementById('quiz-progress-pill').textContent = `Q${quiz.currentIdx+1} / ${quiz.questions.length}`;
+  document.getElementById('quiz-question-text').textContent = q.q;
+  document.getElementById('quiz-options-list').innerHTML = q.options.map((opt,i)=>`
+    <div class="revision-item" style="cursor:pointer;margin-bottom:8px" onclick="selectQuizAnswer(${i})" id="quiz-opt-${i}">
+      <div class="revision-item-info"><div class="revision-item-chap">${opt}</div></div>
+    </div>`).join('');
+  quiz.selectedAnswer = null;
+  document.getElementById('quiz-next-btn').textContent = quiz.currentIdx === quiz.questions.length-1 ? 'Finish 🏁' : 'Next ➡';
+  if (quiz.mode==='timed') {
+    clearInterval(quiz.timerInterval);
+    quiz.timeLeft = quiz.difficulty==='hard'?180:quiz.difficulty==='mid'?120:90;
+    updateQuizTimerDisplay();
+    quiz.timerInterval = setInterval(()=>{
+      quiz.timeLeft--;
+      updateQuizTimerDisplay();
+      if (quiz.timeLeft<=0) { clearInterval(quiz.timerInterval); nextQuizQuestion(); }
+    }, 1000);
+  }
+}
+
+function updateQuizTimerDisplay() {
+  const m = Math.floor(activeQuiz.timeLeft/60), s = activeQuiz.timeLeft%60;
+  document.getElementById('quiz-timer-pill').textContent = `⏱️ ${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function selectQuizAnswer(idx) {
+  const quiz = activeQuiz;
+  const q = quiz.questions[quiz.currentIdx];
+  quiz.selectedAnswer = idx;
+  document.querySelectorAll('[id^="quiz-opt-"]').forEach((el,i)=>{
+    el.style.borderColor = '';
+    el.style.background = '';
+    if (quiz.mode==='practice') {
+      if (i===q.correct) { el.style.borderColor='var(--accent4)'; el.style.background='rgba(16,185,129,0.08)'; }
+      if (i===idx && idx!==q.correct) { el.style.borderColor='var(--danger)'; el.style.background='rgba(239,68,68,0.08)'; }
+    } else {
+      if (i===idx) { el.style.borderColor='var(--accent2)'; el.style.background='rgba(6,182,212,0.08)'; }
+    }
+  });
+}
+
+function nextQuizQuestion() {
+  const quiz = activeQuiz;
+  clearInterval(quiz.timerInterval);
+  const q = quiz.questions[quiz.currentIdx];
+  if (quiz.selectedAnswer === q.correct) quiz.score++;
+  if (quiz.currentIdx < quiz.questions.length-1) {
+    quiz.currentIdx++;
+    renderQuizQuestion();
+  } else {
+    finishQuiz();
+  }
+}
+
+function quitQuiz() {
+  clearInterval(activeQuiz.timerInterval);
+  backToQuizSetup();
+}
+
+function finishQuiz() {
+  const quiz = activeQuiz;
+  const pct = Math.round((quiz.score/quiz.questions.length)*100);
+  state.quizHistory.push({ id:'quiz'+Date.now(), date:new Date().toISOString(), subject:quiz.subject, chapter:quiz.chapter||'', difficulty:quiz.difficulty, mode:quiz.mode, score:quiz.score, total:quiz.questions.length });
+  questsSolvedToday += quiz.questions.length;
+  addXP(quiz.score*5);
+  checkQuestClaims();
+  save();
+  document.getElementById('quiz-active').style.display='none';
+  document.getElementById('quiz-results').style.display='block';
+  document.getElementById('quiz-score-text').textContent = `${quiz.score}/${quiz.questions.length}`;
+  document.getElementById('quiz-score-sub').textContent = `${pct}% — ${quiz.subject}${quiz.chapter?' · '+quiz.chapter:''} (${quiz.difficulty}) · +${quiz.score*5} XP`;
+}
+
+function backToQuizSetup() {
+  if (activeQuiz) clearInterval(activeQuiz.timerInterval);
+  activeQuiz = null;
+  document.getElementById('quiz-setup').style.display='block';
+  document.getElementById('quiz-active').style.display='none';
+  document.getElementById('quiz-results').style.display='none';
+  populateQuizChapterDropdown();
+}
+
+function renderQuizHistory() {
+  const el = document.getElementById('quiz-history-list');
+  if (!state.quizHistory || state.quizHistory.length===0) { el.innerHTML = '<div class="revision-empty">No quizzes taken yet.</div>'; return; }
+  el.innerHTML = state.quizHistory.slice().reverse().slice(0,10).map(q=>`
+    <div class="revision-item" style="margin-bottom:8px">
+      <div class="revision-item-info">
+        <div class="revision-item-chap">${q.subject==='physics'?'⚛️':q.subject==='chemistry'?'🧪':'📐'} ${q.subject}${q.chapter?' · '+q.chapter:''} — ${q.difficulty}</div>
+        <div class="revision-item-meta">${new Date(q.date).toLocaleDateString()} · ${q.mode==='timed'?'⏱️ Timed':'🧘 Practice'}</div>
+      </div>
+      <span class="revision-stage-pill">${q.score}/${q.total}</span>
+    </div>`).join('');
+}
+
+// ===== FORMULA SHEET =====
+function addFormulaSheetSlot() {
+  const subject = document.getElementById('formula-subject-select').value;
+  const chapterName = document.getElementById('formula-chapter-input').value.trim();
+  if (!chapterName) { showToast('⚠️','Name the chapter first!'); return; }
+  state.formulaSheet.push({ id:'fs'+Date.now(), subject, chapterName, content:'' });
+  addXP(10);
+  document.getElementById('formula-chapter-input').value='';
+  save(); renderFormulaSheet();
+  showToast('📐', `${chapterName} slot added!`);
+}
+
+function deleteFormulaSheetSlot(id) {
+  state.formulaSheet = state.formulaSheet.filter(f=>f.id!==id);
+  save(); renderFormulaSheet();
+}
+
+function saveFormulaContent(id) {
+  const textarea = document.getElementById('fs-content-'+id);
+  const item = state.formulaSheet.find(f=>f.id===id);
+  if (item) {
+    const hadContentBefore = item.content.trim().length>0;
+    item.content = textarea.value;
+    if (!hadContentBefore && item.content.trim().length>0) addXP(15);
+    save(); showToast('✅','Saved!');
+  }
+}
+
+function renderFormulaSheet() {
+  const el = document.getElementById('formula-sheet-list');
+  if (state.formulaSheet.length===0) { el.innerHTML = '<div class="revision-empty">No chapter slots yet — add one above.</div>'; return; }
+  const subjIcon = {physics:'⚛️',chemistry:'🧪',maths:'📐'};
+  el.innerHTML = state.formulaSheet.map(f=>`
+    <div class="card mb-16">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;font-size:0.9rem">${subjIcon[f.subject]} ${f.chapterName}</div>
+        <button class="skill-subnode-del" onclick="deleteFormulaSheetSlot('${f.id}')">🗑️ Delete</button>
+      </div>
+      <textarea class="modal-input" id="fs-content-${f.id}" placeholder="Type your formulas here..." style="min-height:120px;margin-bottom:8px;font-family:monospace;font-size:0.85rem">${f.content}</textarea>
+      <button class="btn btn-secondary btn-sm" onclick="saveFormulaContent('${f.id}')">💾 Save</button>
+    </div>`).join('');
+}
+
+function renderLifestyleWidget() {
+  const key = todayKey();
+  const sleepEl = document.getElementById('sleep-value');
+  const waterEl = document.getElementById('water-value');
+  const detoxBtn = document.getElementById('detox-btn');
+  if (sleepEl) sleepEl.textContent = state.sleepLog[key] || 0;
+  if (waterEl) waterEl.textContent = state.waterLog[key] || 0;
+  if (detoxBtn) {
+    const marked = !!state.detoxLog[key];
+    detoxBtn.textContent = marked ? '✅ Clean Day Logged' : 'Mark Clean Day';
+    detoxBtn.classList.toggle('btn-success', !marked);
+    detoxBtn.style.background = marked ? 'var(--accent4)' : '';
+  }
+}
+
+function openEndOfDayReview() {
+  const key = todayKey();
+  const hrs = Math.floor(state.todaySeconds/3600), mins = Math.floor((state.todaySeconds%3600)/60);
+  const questsDone = (state.dailyQuests||[]).filter(q=>q.claimed).length;
+  const questsTotal = (state.dailyQuests||[]).length;
+  const chaptersCompletedToday = getAllChaptersFlat().filter(c=>c.completedDate && new Date(c.completedDate).toDateString()===key).length;
+  const sleep = state.sleepLog[key]||0, water = state.waterLog[key]||0, detox = !!state.detoxLog[key];
+  const subjBreakdown = ['physics','chemistry','maths'].map(s=>{
+    const secs = state.subjectSeconds[s]||0;
+    return `<div style="display:flex;justify-content:space-between;font-size:0.82rem;padding:4px 0"><span>${s==='physics'?'⚛️ Physics':s==='chemistry'?'🧪 Chemistry':'📐 Maths'}</span><span class="font-mono">${Math.floor(secs/3600)}h ${Math.floor((secs%3600)/60)}m</span></div>`;
+  }).join('');
+
+  const goalsDone = (state.dailyTasks||[]).length>=2;
+  const overallVerdict = state.dayComplete ? '🎉 Great day — fully complete!' : goalsDone ? '👍 Solid day, almost there.' : '💪 Tomorrow\'s a fresh shot.';
+
+  document.getElementById('eod-content').innerHTML = `
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:1.6rem;margin-bottom:4px">${overallVerdict}</div>
+      <div style="font-size:0.78rem;color:var(--muted)">${new Date().toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric'})}</div>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px">⏱️ Study Time — ${hrs}h ${mins}m total</div>
+      ${subjBreakdown}
+    </div>
+    <div style="background:var(--surface);border-radius:10px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.82rem">
+      <div>📝 Tasks logged: <b>${(state.dailyTasks||[]).length}</b></div>
+      <div>🗺️ Quests: <b>${questsDone}/${questsTotal}</b></div>
+      <div>📖 Chapters completed: <b>${chaptersCompletedToday}</b></div>
+      <div>🔥 Streak: <b>${state.streak} days</b></div>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:0.8rem;text-align:center">
+      <div>😴<br><b>${sleep}h</b><br><span style="color:var(--muted);font-size:0.72rem">sleep</span></div>
+      <div>💧<br><b>${water}</b><br><span style="color:var(--muted);font-size:0.72rem">glasses</span></div>
+      <div>📵<br><b>${detox?'✅':'—'}</b><br><span style="color:var(--muted);font-size:0.72rem">detox</span></div>
+    </div>
+  `;
+  document.getElementById('end-of-day-modal').classList.add('open');
+}
 
 function resetDailyIfNewDay() {
   const today = new Date().toDateString();
@@ -532,14 +1215,24 @@ function showSaveIndicator(status) {
   }
 }
 
-async function writeStateNow() {
+async function writeStateNow(retryCount) {
+  retryCount = retryCount || 0;
   try {
     showSaveIndicator('saving');
     await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
     showSaveIndicator('saved');
   } catch (e) {
     console.error('StudyHub save failed:', e);
-    showSaveIndicator('error');
+    if (retryCount < 3) {
+      // Transient errors (network blips, brief server hiccups) usually clear up
+      // within a couple seconds — retry a few times before giving up, so a
+      // single failed save doesn't quietly lose data.
+      showSaveIndicator('error');
+      setTimeout(()=>writeStateNow(retryCount+1), 1500 * (retryCount+1));
+    } else {
+      showSaveIndicator('error');
+      console.error('StudyHub: save failed after 3 retries — data may not have persisted for this change.');
+    }
   }
 }
 
@@ -572,20 +1265,10 @@ async function loadState() {
       state = defaultState();
     }
   } catch (e) {
-    if (e.message && e.message.includes('not configured')) {
-      showSetupWarning();
-    }
     // Key doesn't exist yet (first-ever visit) or storage error — start fresh.
     state = defaultState();
   }
   stateLoaded = true;
-}
-
-function showSetupWarning() {
-  const banner = document.createElement('div');
-  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:#fff;text-align:center;padding:10px;font-size:0.85rem;z-index:99999;font-family:Inter,sans-serif;';
-  banner.innerHTML = '⚠️ Supabase isn\'t set up yet — your progress won\'t save. Open <code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px">storage.js</code> and follow the setup comment at the top.';
-  document.body.prepend(banner);
 }
 
 // Older saved data (before revision/flashcard features existed) won't have
@@ -612,6 +1295,33 @@ function migrateChapterFields() {
       }
     });
   });
+
+  // Boards data shape changed from { subject: {chapterName:true} } to
+  // { subject: { classYear: {chapterName:true} } } to support Class 11 + 12
+  // columns. If old flat data is detected, discard it rather than misreading
+  // chapter names as class years (safer than silently corrupting progress).
+  Object.keys(state.boardsCompleted||{}).forEach(subj=>{
+    const bucket = state.boardsCompleted[subj];
+    const looksOld = Object.keys(bucket).some(k => k!=='11' && k!=='12');
+    if (looksOld) {
+      const defaults = {english:{12:{}}, maths:{11:{},12:{}}, physics:{11:{},12:{}}, chemistry:{11:{},12:{}}, pe:{12:{}}};
+      state.boardsCompleted[subj] = defaults[subj] || {};
+    }
+  });
+
+  // A second shape change: each chapter's value went from a plain boolean
+  // to {reading, qa} so reading and Q&A can be tracked separately. Convert
+  // any old `true` values into both being done, so nothing looks like it
+  // un-completed itself after this update.
+  Object.values(state.boardsCompleted||{}).forEach(classBuckets=>{
+    Object.values(classBuckets||{}).forEach(chapterMap=>{
+      Object.keys(chapterMap||{}).forEach(chapName=>{
+        if (chapterMap[chapName] === true) {
+          chapterMap[chapName] = {reading:true, qa:true};
+        }
+      });
+    });
+  });
 }
 
 // ===================== PAGES =====================
@@ -620,6 +1330,8 @@ function showPage(page, tabEl) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   if (tabEl) tabEl.classList.add('active');
+  const profileIcon = document.getElementById('nav-profile-icon');
+  if (profileIcon) profileIcon.style.borderColor = (page==='profile') ? 'var(--accent)' : 'var(--border)';
   if (page === 'chapters') renderChapters();
   if (page === 'analytics') renderCharts();
   if (page === 'achievements') renderBadges();
@@ -629,6 +1341,13 @@ function showPage(page, tabEl) {
   if (page === 'quests') renderQuests();
   if (page === 'skilltree') renderSkillTree();
   if (page === 'shop') renderShop();
+  if (page === 'vision') { renderAvatarEvolution(); renderFutureYou(); renderVisionBoard(); }
+  if (page === 'months') { populateMonthsSelector(); renderMonthPlan(); }
+  if (page === 'mocktests') renderMockTests();
+  if (page === 'quiz') { backToQuizSetup(); renderQuizHistory(); }
+  if (page === 'formulasheet') renderFormulaSheet();
+  if (page === 'boards') renderBoardsChapters();
+  if (page === 'profile') renderProfile();
 }
 
 // ===================== COUNTDOWN =====================
@@ -646,12 +1365,227 @@ const LEVELS = [
   {min:15000, name:'💎 ELITE SCHOLAR'},{min:25000, name:'👑 IIT DESTINED'},
 ];
 
+// ===== FUTURE YOU MESSAGES =====
+// Each unlocks once, permanently, the first time its condition is true.
+// Written as if from a future version of Sohum who made it — meant to land
+// at real milestones, not randomly.
+const FUTURE_YOU_MESSAGES = [
+  { id:'fy_first_xp', icon:'🌱', condition:()=>state.xp>=100,
+    title:'The First Step',
+    text:"Hey. You just started, and I know it doesn't feel like much yet — 100 XP, one small session. But I remember this exact moment. This is the day the comeback actually began, even if it didn't feel dramatic. Keep going." },
+  { id:'fy_level2', icon:'📖', condition:()=>state.level>=2,
+    title:'Knowledge Seeker',
+    text:"You leveled up. I won't lie to you — it gets harder before it gets easier. But you're already proving to yourself that last year doesn't define this year. Stay consistent, not perfect." },
+  { id:'fy_streak7', icon:'🔥', condition:()=>state.streak>=7,
+    title:'One Week Strong',
+    text:"Seven days straight. I know how many times you wanted to skip a day and didn't. That discipline you're building right now — that's the real skill. JEE marks fade, but this version of you doesn't." },
+  { id:'fy_level4', icon:'⚡', condition:()=>state.level>=4,
+    title:'Formula Master',
+    text:"By now physics formulas probably don't scare you the way they used to. Remember how far back you started from. IIT Guwahati isn't a fantasy anymore — it's a math problem you're actively solving." },
+  { id:'fy_streak30', icon:'🏔️', condition:()=>state.streak>=30,
+    title:'Thirty Days',
+    text:"A month. No excuses, no skipped days. I'm not going to pretend it's been easy — but you didn't need it to be easy, you needed it to be done. It is. Keep stacking days." },
+  { id:'fy_level6', icon:'🏆', condition:()=>state.level>=6,
+    title:'JEE Warrior',
+    text:"You're a JEE Warrior now — not because of a badge, but because you actually showed up enough times to earn it. January 2027 is closer than it feels. Trust the process you built." },
+  { id:'fy_mastery', icon:'🌳', condition:()=>['physics','chemistry','maths'].some(s=>{const ch=state.chapters[s];return ch.length>0 && ch.every(c=>c.status==='completed');}),
+    title:'Full Mastery, One Subject',
+    text:"You finished an entire subject. Every single chapter. I remember when that subject felt impossible. It isn't anymore — because you didn't wait to feel ready, you just kept finishing chapters one at a time." },
+  { id:'fy_level8', icon:'👑', condition:()=>state.level>=8,
+    title:'IIT Destined',
+    text:"If you're reading this, you've put in more hours than almost anyone willing to admit they needed a comeback. Whatever the result ends up being — you already proved the version of you that gave up wasn't the real one." },
+];
+
+function checkFutureYouMessages() {
+  let newUnlock = null;
+  FUTURE_YOU_MESSAGES.forEach(msg=>{
+    if (!state.futureYouUnlocked.includes(msg.id) && msg.condition()) {
+      state.futureYouUnlocked.push(msg.id);
+      newUnlock = msg;
+    }
+  });
+  if (newUnlock) {
+    save();
+    showToast('💌', `New message unlocked: "${newUnlock.title}"`);
+    renderFutureYou();
+  }
+}
+
+// ===== AVATAR EVOLUTION =====
+// A separate visual track from the shop avatars — this one evolves automatically
+// with your level, so there's always something visually progressing even if
+// you never spend a coin in the shop.
+const AVATAR_EVOLUTION_STAGES = [
+  { minLevel:1, icon:'🌱', name:'Seedling Scholar' },
+  { minLevel:2, icon:'📖', name:'Focused Learner' },
+  { minLevel:3, icon:'🔥', name:'Rising Slayer' },
+  { minLevel:4, icon:'⚡', name:'Formula Master' },
+  { minLevel:5, icon:'🧠', name:'Sharp Mind' },
+  { minLevel:6, icon:'🏆', name:'JEE Warrior' },
+  { minLevel:7, icon:'💎', name:'Elite Scholar' },
+  { minLevel:8, icon:'👑', name:'IIT Destined' },
+];
+
+function getAvatarEvolutionStage() {
+  let stage = AVATAR_EVOLUTION_STAGES[0];
+  AVATAR_EVOLUTION_STAGES.forEach(s=>{ if (state.level >= s.minLevel) stage = s; });
+  return stage;
+}
+
+function checkAvatarEvolution() {
+  const stage = getAvatarEvolutionStage();
+  const stageIdx = AVATAR_EVOLUTION_STAGES.indexOf(stage);
+  if (stageIdx > state.avatarEvolutionStage) {
+    state.avatarEvolutionStage = stageIdx;
+    showToast('🦋', `Your avatar evolved: ${stage.icon} ${stage.name}!`);
+    save();
+  }
+}
+
+function renderAvatarEvolution() {
+  const stage = getAvatarEvolutionStage();
+  const stageIdx = AVATAR_EVOLUTION_STAGES.indexOf(stage);
+  document.getElementById('avatar-evo-icon').textContent = stage.icon;
+  document.getElementById('avatar-evo-name').textContent = stage.name;
+  const next = AVATAR_EVOLUTION_STAGES[stageIdx+1];
+  document.getElementById('avatar-evo-next').textContent = next
+    ? `Reach Level ${next.minLevel} to evolve into ${next.icon} ${next.name}`
+    : 'Maximum evolution reached — you\'re at the top form.';
+  renderClimbVisual();
+}
+
+// ===== FUTURE YOU — THE CLIMB =====
+// A simple SVG figure (light skin, muscular build, spiked hair) that climbs
+// one stair step per level, 8 steps total matching the 8 LEVELS/avatar stages.
+const CLIMB_TOTAL_STEPS = 8;
+
+function buildStaircaseSVG() {
+  const stepW = 40, stepH = 22;
+  let stairs = '';
+  // Steps drawn right-to-left, ascending — step 1 lowest/rightmost, step 8 highest/leftmost
+  for (let i=0;i<CLIMB_TOTAL_STEPS;i++) {
+    const x = 320 - i*stepW*0.92;
+    const y = 200 - i*stepH;
+    stairs += `<rect x="${x-stepW}" y="${y}" width="${stepW+ (i===0?20:0)}" height="${220-y}" fill="${i%2===0?'#1a1a2e':'#16213e'}" stroke="#2a2a3e" stroke-width="1"/>`;
+  }
+  document.getElementById('climb-stairs').innerHTML = stairs;
+}
+
+function getClimbStepPosition(stepIdx) {
+  // stepIdx is 0-based (0 = first step). Returns the {x,y} top-of-step coordinate
+  // for the figure's feet to stand on, matching buildStaircaseSVG's geometry.
+  const stepW = 40, stepH = 22;
+  const x = 320 - stepIdx*stepW*0.92 - stepW/2;
+  const y = 200 - stepIdx*stepH;
+  return { x, y };
+}
+
+function buildFigureSVG() {
+  // A simple vector figure: light skin tone, muscular torso (broad shoulders,
+  // tapered waist), spiked hair. Drawn once; only its outer <g transform>
+  // changes (via CSS transition) when the figure climbs.
+  return `
+    <g id="climb-figure-inner">
+      <!-- legs -->
+      <rect x="-7" y="10" width="6" height="16" rx="2" fill="#1e293b"/>
+      <rect x="1" y="10" width="6" height="16" rx="2" fill="#1e293b"/>
+      <!-- torso (muscular, tapered) -->
+      <path d="M -10 -14 Q -12 -2 -8 10 L 8 10 Q 12 -2 10 -14 Q 6 -18 0 -18 Q -6 -18 -10 -14 Z" fill="#7c3aed"/>
+      <!-- arms -->
+      <rect x="-14" y="-12" width="5" height="14" rx="2.5" fill="#f5cba7" transform="rotate(-12 -14 -12)"/>
+      <rect x="9" y="-12" width="5" height="14" rx="2.5" fill="#f5cba7" transform="rotate(12 14 -12)"/>
+      <!-- neck -->
+      <rect x="-3" y="-21" width="6" height="5" fill="#f5cba7"/>
+      <!-- head -->
+      <circle cx="0" cy="-27" r="8" fill="#f5cba7"/>
+      <!-- spiked hair -->
+      <path d="M -8 -32 L -6 -39 L -3 -33 L 0 -40 L 3 -33 L 6 -39 L 8 -32 Q 0 -36 -8 -32 Z" fill="#1a1a1a"/>
+    </g>`;
+}
+
+function renderClimbVisual() {
+  const svgStairs = document.getElementById('climb-stairs');
+  const svgFigure = document.getElementById('climb-figure');
+  if (!svgStairs || !svgFigure) return;
+
+  buildStaircaseSVG();
+
+  const level = Math.min(state.level||1, CLIMB_TOTAL_STEPS);
+  const stepIdx = level - 1; // level 1 -> step 0 (bottom)
+  const pos = getClimbStepPosition(stepIdx);
+
+  // Build the figure group once, then just transition its transform —
+  // this is what gives the "climbing" feel without needing video/sprites.
+  if (!svgFigure.dataset.built) {
+    svgFigure.innerHTML = buildFigureSVG();
+    svgFigure.style.transition = 'transform 1.1s cubic-bezier(.34,1.56,.64,1)';
+    svgFigure.dataset.built = 'true';
+  }
+  svgFigure.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+  const label = document.getElementById('climb-stage-label');
+  if (label) label.textContent = `Step ${level} of ${CLIMB_TOTAL_STEPS} — Level ${state.level||1}`;
+}
+
+function renderFutureYou() {
+  const el = document.getElementById('future-you-list');
+  const unlocked = FUTURE_YOU_MESSAGES.filter(m=>state.futureYouUnlocked.includes(m.id));
+  const locked = FUTURE_YOU_MESSAGES.filter(m=>!state.futureYouUnlocked.includes(m.id));
+  let html = '';
+  unlocked.forEach(m=>{
+    html += `<div class="card mb-16" style="border-color:var(--accent4)">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="font-size:1.8rem">${m.icon}</div>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem;margin-bottom:6px">${m.title}</div>
+          <div style="font-size:0.85rem;color:var(--muted);line-height:1.6">${m.text}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  if (locked.length>0) {
+    html += `<div class="revision-empty" style="text-align:left;padding:16px 4px">🔒 ${locked.length} more message${locked.length>1?'s':''} waiting at future milestones.</div>`;
+  }
+  el.innerHTML = html || '<div class="revision-empty">Keep going — your first message unlocks at 100 XP.</div>';
+}
+
+function addVisionItem() {
+  const input = document.getElementById('vision-input');
+  const text = input.value.trim();
+  if (!text) { showToast('⚠️','Type something first!'); return; }
+  state.visionBoard.push({ id:'vision'+Date.now(), text, icon:'🎯' });
+  addXP(5);
+  input.value='';
+  save(); renderVisionBoard();
+}
+
+function removeVisionItem(id) {
+  state.visionBoard = state.visionBoard.filter(v=>v.id!==id);
+  save(); renderVisionBoard();
+}
+
+function renderVisionBoard() {
+  const el = document.getElementById('vision-board-list');
+  if (state.visionBoard.length===0) {
+    el.innerHTML = '<div class="revision-empty" style="grid-column:1/-1">Nothing here yet — add what you\'re working toward above.</div>';
+    return;
+  }
+  el.innerHTML = state.visionBoard.map(v=>`
+    <div class="shop-item" style="text-align:left;position:relative">
+      <button class="skill-subnode-del" style="position:absolute;top:8px;right:8px" onclick="removeVisionItem('${v.id}')">✕</button>
+      <div class="shop-item-icon">${v.icon}</div>
+      <div class="shop-item-name" style="font-size:0.8rem;line-height:1.4">${v.text}</div>
+    </div>`).join('');
+}
+
 function addXP(amount) {
   state.xp += amount;
   state.comeback = Math.min(100, state.comeback + Math.floor(amount/10));
   updateXP();
   showToast('⚡', `+${amount} XP earned!`);
   checkBadges();
+  checkFutureYouMessages();
+  checkAvatarEvolution();
   save();
 }
 
@@ -690,12 +1624,31 @@ function toggleGoal(el, xp) {
 function markStudied() {
   const today = new Date().toDateString();
   if (state.lastStudied === today) { showToast('ℹ️','Already marked today! Keep going!'); return; }
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-  state.streak = state.lastStudied === yesterday.toDateString() ? state.streak+1 : 1;
+  const daysSinceLastStudy = state.lastStudied
+    ? Math.round((new Date(today) - new Date(state.lastStudied)) / (1000*60*60*24))
+    : null;
+
+  if (daysSinceLastStudy === 1) {
+    // Studied yesterday — normal streak continuation
+    state.streak += 1;
+    showToast('🔥','Streak extended! '+state.streak+' days!');
+  } else if (daysSinceLastStudy === 2 || daysSinceLastStudy === 3) {
+    // Missed 1-2 days — streak is frozen (grace period), not reset. Picking
+    // back up continues the SAME streak rather than starting over, as long
+    // as the gap was 2 days max before this study session.
+    state.streak += 1;
+    showToast('🧊','Streak frozen and saved! Picked back up at '+state.streak+' days — don\'t push it again!');
+  } else {
+    // First-ever session, or missed 3+ days — streak resets
+    state.streak = 1;
+    if (daysSinceLastStudy && daysSinceLastStudy > 3) showToast('💔','Streak reset — missed too many days. Fresh start!');
+    else showToast('🔥','Streak started! Day 1!');
+  }
+
+  state.longestStreak = Math.max(state.longestStreak||0, state.streak);
   state.lastStudied = today;
   if (!state.studiedDays.includes(today)) state.studiedDays.push(today);
   updateStreak(); addXP(30); save();
-  showToast('🔥','Streak extended! '+state.streak+' days!');
 }
 
 function updateStreak() {
@@ -806,18 +1759,35 @@ function toggleChapterExpand(subj, i) {
 function toggleSubtask(subj, i, task) {
   const ch = state.chapters[subj][i];
   if (!ch.subtasks) ch.subtasks = {theory:false,exercises:false,pyqs:false,reading:false};
-  ch.subtasks[task] = !ch.subtasks[task];
+  const wasChecked = ch.subtasks[task];
+  ch.subtasks[task] = !wasChecked;
   const allDone = Object.values(ch.subtasks).every(Boolean);
+
   if (allDone && ch.status !== 'completed') {
     ch.status = 'completed';
     addXP(150);
     showToast('🏆', ch.name+' chapter COMPLETED! +150 XP!');
   } else if (!allDone && ch.status === 'completed') {
     ch.status = 'in-progress';
+    // Chapter no longer fully complete — claw back the completion bonus so
+    // toggling subtasks off and back on can't be used to re-earn it.
+    state.xp = Math.max(0, state.xp - 150);
+    state.comeback = Math.max(0, state.comeback - 15);
+    updateXP();
   } else if (ch.status === 'not-started') {
     ch.status = 'in-progress';
   }
-  if (ch.subtasks[task]) addXP(20);
+
+  // Award/remove the per-subtask XP only on the actual on/off transition,
+  // never on repeated re-checking, so unchecking and rechecking nets zero.
+  if (!wasChecked && ch.subtasks[task]) {
+    addXP(20);
+  } else if (wasChecked && !ch.subtasks[task]) {
+    state.xp = Math.max(0, state.xp - 20);
+    state.comeback = Math.max(0, state.comeback - 2);
+    updateXP();
+  }
+
   save();
   renderChapters();
   // Re-open the expanded section
@@ -858,20 +1828,31 @@ function cycleStatus(subj, i) {
   const idx = statuses.indexOf(ch.status);
   ch.status = statuses[(idx+1)%3];
   if (ch.status==='completed') {
-    addXP(100);
     ch.lastRevised = new Date().toLocaleDateString();
     if (!ch.completedDate) {
-      ch.completedDate = new Date().toISOString(); // first completion only
+      // First time this chapter has ever been completed — award XP once.
+      // Cycling it off and back to completed again later does NOT re-pay,
+      // preventing infinite XP farming by spamming the status cycle.
+      addXP(100);
+      ch.completedDate = new Date().toISOString();
       ch.revisionSchedule = buildRevisionSchedule(ch.completedDate);
       questsChaptersCompletedToday++;
       checkQuestClaims();
+      showToast('🏆', ch.name+' completed! +100 XP');
+    } else {
+      showToast('🏆', ch.name+' marked completed again (already earned XP for this one).');
     }
     // Keep the skill tree consistent: if this chapter has sub-topics, marking
     // it complete here checks them all off too, so the two views never disagree.
     if (ch.subtopics && ch.subtopics.length>0) ch.subtopics.forEach(s=>s.done=true);
   } else {
-    ch.completedDate = null; // cycled back out of completed — no longer counts toward month/year targets
     ch.revisionSchedule = []; // not meaningfully "completed" anymore, so no revision schedule
+    // Note: completedDate is intentionally NOT cleared here anymore — it now
+    // permanently marks "has this chapter ever been completed", which is what
+    // stops the XP re-award above. Monthly/yearly targets below are filtered
+    // to only count chapters currently in 'completed' status, so cycling out
+    // correctly removes it from this month's count without erasing the
+    // historical completion record.
   }
   save(); renderChapters(); updateSubjectStats(); updateMonthYearProgress(); renderRevisionPage(); renderSkillTree();
 }
@@ -888,6 +1869,196 @@ function deleteChapter(subj, i) {
   state.chapters[subj].splice(i,1);
   save(); renderChapters(); updateSubjectStats(); renderSyllabus(); updateMonthYearProgress();
   showToast('🗑️','Chapter deleted.');
+}
+
+// ===== MONTHLY CHAPTER PLANS =====
+function monthKey(date) { return date.getFullYear()+'-'+date.getMonth(); }
+
+function populateMonthsSelector() {
+  const sel = document.getElementById('months-selector');
+  const now = new Date();
+  const opts = [];
+  // Current month through 9 months ahead — no past months, since plans are forward-looking only
+  for (let i=0;i<=9;i++) {
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    const key = monthKey(d);
+    const label = d.toLocaleString('default',{month:'long',year:'numeric'});
+    opts.push(`<option value="${key}" ${i===0?'selected':''}>${i===0?'📍 ':''}${label}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+}
+
+function renderMonthPlan() {
+  const sel = document.getElementById('months-selector');
+  if (!sel.value) return;
+  const key = sel.value;
+  const plan = state.monthlyPlans[key];
+  const el = document.getElementById('month-plan-content');
+  const subjIcon = {physics:'⚛️',chemistry:'🧪',maths:'📐'};
+
+  if (!plan) {
+    // No plan yet for this month — show the picker
+    el.innerHTML = `
+      <div class="card mb-16">
+        <div class="card-title">No plan set for this month yet</div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:16px">Pick exactly 4 chapters per subject below.</div>
+        ${['physics','chemistry','maths'].map(s=>`
+          <div style="margin-bottom:16px">
+            <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px">${subjIcon[s]} ${s.charAt(0).toUpperCase()+s.slice(1)} <span id="picker-count-${s}" style="color:var(--muted);font-size:0.75rem">(0/4 selected)</span></div>
+            <div id="picker-list-${s}" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+          </div>`).join('')}
+        <button class="btn btn-primary" style="width:100%" onclick="saveMonthPlan('${key}')">Save This Month's Plan</button>
+      </div>`;
+    ['physics','chemistry','maths'].forEach(s=>renderChapterPicker(s));
+  } else {
+    // Plan exists — show it with live completion status
+    el.innerHTML = `
+      <div class="card mb-16">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div class="card-title" style="margin-bottom:0">This Month's Plan</div>
+          <button class="skill-subnode-del" onclick="clearMonthPlan('${key}')">🗑️ Reset Plan</button>
+        </div>
+        ${['physics','chemistry','maths'].map(s=>{
+          const chapNames = plan[s]||[];
+          const allChaps = state.chapters[s];
+          const doneCount = chapNames.filter(name=>{
+            const ch = allChaps.find(c=>c.name===name);
+            return ch && ch.status==='completed';
+          }).length;
+          return `<div style="margin-bottom:16px">
+            <div style="font-weight:600;font-size:0.85rem;margin-bottom:8px">${subjIcon[s]} ${s.charAt(0).toUpperCase()+s.slice(1)} <span style="color:var(--muted);font-size:0.75rem">(${doneCount}/4 done)</span></div>
+            ${chapNames.map(name=>{
+              const ch = allChaps.find(c=>c.name===name);
+              const done = ch && ch.status==='completed';
+              return `<div class="revision-item ${done?'':''}" style="margin-bottom:6px">
+                <div class="revision-item-info"><div class="revision-item-chap">${done?'✅':'🔲'} ${name}</div></div>
+              </div>`;
+            }).join('')}
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+}
+
+function renderChapterPicker(subj) {
+  const sel = document.getElementById('months-selector');
+  const key = sel.value;
+  const draftKey = 'draft-'+key+'-'+subj;
+  if (!window._monthDraftPicks) window._monthDraftPicks = {};
+  if (!window._monthDraftPicks[draftKey]) window._monthDraftPicks[draftKey] = [];
+  const picks = window._monthDraftPicks[draftKey];
+
+  const listEl = document.getElementById('picker-list-'+subj);
+  listEl.innerHTML = state.chapters[subj].map(c=>{
+    const selected = picks.includes(c.name);
+    return `<div class="flashcard-chip ${selected?'active':''}" onclick="toggleMonthPick('${subj}','${c.name.replace(/'/g,"\\'")}')">${c.name}</div>`;
+  }).join('');
+  document.getElementById('picker-count-'+subj).textContent = `(${picks.length}/4 selected)`;
+}
+
+function toggleMonthPick(subj, chapterName) {
+  const sel = document.getElementById('months-selector');
+  const key = sel.value;
+  const draftKey = 'draft-'+key+'-'+subj;
+  const picks = window._monthDraftPicks[draftKey];
+  const idx = picks.indexOf(chapterName);
+  if (idx>-1) { picks.splice(idx,1); }
+  else {
+    if (picks.length>=4) { showToast('⚠️','Only 4 chapters allowed per subject!'); return; }
+    picks.push(chapterName);
+  }
+  renderChapterPicker(subj);
+}
+
+function saveMonthPlan(key) {
+  const plan = {};
+  let valid = true;
+  ['physics','chemistry','maths'].forEach(s=>{
+    const draftKey = 'draft-'+key+'-'+s;
+    const picks = (window._monthDraftPicks && window._monthDraftPicks[draftKey]) || [];
+    if (picks.length!==4) valid = false;
+    plan[s] = picks;
+  });
+  if (!valid) { showToast('⚠️','Pick exactly 4 chapters in each subject first!'); return; }
+  state.monthlyPlans[key] = plan;
+  save();
+  showToast('📅','This month\'s plan is locked in!');
+  renderMonthPlan();
+}
+
+function clearMonthPlan(key) {
+  delete state.monthlyPlans[key];
+  ['physics','chemistry','maths'].forEach(s=>{ if (window._monthDraftPicks) delete window._monthDraftPicks['draft-'+key+'-'+s]; });
+  save(); renderMonthPlan();
+}
+
+// ===== BOARDS (NCERT CLASS 11 & 12) =====
+let currentBoardsSubject = 'english';
+
+function showBoardsSubject(subj, el) {
+  currentBoardsSubject = subj;
+  document.querySelectorAll('#boards-subject-tabs .subject-tab').forEach(t=>t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderBoardsChapters();
+}
+
+function toggleBoardsChapter(classYear, chapterName, task) {
+  const subj = currentBoardsSubject;
+  if (!state.boardsCompleted[subj]) state.boardsCompleted[subj] = {};
+  if (!state.boardsCompleted[subj][classYear]) state.boardsCompleted[subj][classYear] = {};
+  const bucket = state.boardsCompleted[subj][classYear];
+  if (!bucket[chapterName] || typeof bucket[chapterName] !== 'object') bucket[chapterName] = {reading:false, qa:false};
+  const wasFullyDone = bucket[chapterName].reading && bucket[chapterName].qa;
+  bucket[chapterName][task] = !bucket[chapterName][task];
+  const nowFullyDone = bucket[chapterName].reading && bucket[chapterName].qa;
+  if (nowFullyDone && !wasFullyDone) { addXP(15); showToast('✅', chapterName+' complete!'); }
+  save();
+  renderBoardsChapters();
+}
+
+function renderBoardsClassColumn(subj, classYear) {
+  const chapters = (BOARDS_CHAPTERS[subj] && BOARDS_CHAPTERS[subj][classYear]) || [];
+  const completed = (state.boardsCompleted[subj] && state.boardsCompleted[subj][classYear]) || {};
+  const doneCount = chapters.filter(c=>{
+    const entry = completed[c];
+    return entry && typeof entry==='object' && entry.reading && entry.qa;
+  }).length;
+  const pct = chapters.length ? Math.round((doneCount/chapters.length)*100) : 0;
+  const rows = chapters.map(name=>{
+    const entry = (completed[name] && typeof completed[name]==='object') ? completed[name] : {reading:false, qa:false};
+    const safeName = name.replace(/'/g,"\\'");
+    const fullyDone = entry.reading && entry.qa;
+    return `<div style="background:var(--surface);border:1px solid ${fullyDone?'var(--accent4)':'var(--border)'};border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:0.85rem;font-weight:600;margin-bottom:8px">${fullyDone?'✅':'🔲'} ${name}</div>
+      <div class="subtask-grid" style="margin-bottom:0">
+        <div class="subtask-item ${entry.reading?'done':''}" onclick="toggleBoardsChapter(${classYear},'${safeName}','reading')">
+          <div class="subtask-check">${entry.reading?'✓':''}</div>
+          <div><div class="subtask-label" style="font-size:0.78rem">📖 Chapter Reading</div></div>
+        </div>
+        <div class="subtask-item ${entry.qa?'done':''}" onclick="toggleBoardsChapter(${classYear},'${safeName}','qa')">
+          <div class="subtask-check">${entry.qa?'✓':''}</div>
+          <div><div class="subtask-label" style="font-size:0.78rem">❓ Q&amp;A</div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="boards-class-col">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div class="card-title" style="margin-bottom:0">Class ${classYear}</div>
+        <div class="revision-stage-pill">${doneCount}/${chapters.length} done</div>
+      </div>
+      <div class="subject-bar-bg" style="margin-bottom:16px"><div class="subject-bar-fill" style="width:${pct}%"></div></div>
+      ${rows || '<div class="revision-empty">No chapters listed.</div>'}
+    </div>
+  </div>`;
+}
+
+function renderBoardsChapters() {
+  const subj = currentBoardsSubject;
+  const classYears = Object.keys(BOARDS_CHAPTERS[subj] || {}).sort(); // e.g. ['11','12'] or ['12']
+  const el = document.getElementById('boards-content');
+  el.innerHTML = `<div class="boards-classes-grid">${classYears.map(cy=>renderBoardsClassColumn(subj, cy)).join('')}</div>`;
 }
 
 function updateMonthYearProgress() {
@@ -941,8 +2112,8 @@ function populateLogChapterMonths() {
   const sel = document.getElementById('log-chapter-month');
   const now = new Date();
   const opts = [];
-  for (let i=0;i<12;i++) {
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+  for (let i=0;i<=9;i++) {
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
     const label = d.toLocaleString('default',{month:'long',year:'numeric'});
     opts.push(`<option value="${d.getFullYear()}-${d.getMonth()}">${i===0?'This Month — ':''}${label}</option>`);
   }
@@ -1097,13 +2268,13 @@ function updateTimerDisplay() {
     const clockEl = document.getElementById('clock-'+subj);
     if (clockEl) clockEl.textContent = h+':'+m+':'+sec;
     const ss=state.subjectSeconds[subj]||0;
-    const sh=Math.floor(ss/3600), sm=Math.floor((ss%3600)/60);
+    const sh=Math.floor(ss/3600), sm=Math.floor((ss%3600)/60), ssec=ss%60;
     const id=subj==='physics'?'timer-phy':subj==='chemistry'?'timer-chem':'timer-math';
-    document.getElementById(id).textContent=sh+'h '+sm+'m';
+    document.getElementById(id).textContent = sh>0 ? `${sh}h ${sm}m` : sm>0 ? `${sm}m ${ssec}s` : `${ssec}s`;
   });
   const ts=state.todaySeconds||0;
-  const th=Math.floor(ts/3600), tm=Math.floor((ts%3600)/60);
-  document.getElementById('timer-total-today').textContent=th+'h '+tm+'m';
+  const th=Math.floor(ts/3600), tm=Math.floor((ts%3600)/60), tsec=ts%60;
+  document.getElementById('timer-total-today').textContent = th>0 ? `${th}h ${tm}m` : tm>0 ? `${tm}m ${tsec}s` : `${tsec}s`;
   document.getElementById('stat-hours').textContent=th+'h';
   document.getElementById('timer-xp-today').textContent=state.studyXpToday||0;
 }
@@ -1436,6 +2607,7 @@ function addFlashcard() {
   const ch = state.chapters[flashcardSubject][flashcardChapterIdx];
   if (!ch) { showToast('⚠️','Pick a chapter first!'); return; }
   ch.flashcards.push({ id:'card'+Date.now(), front, back, type });
+  addXP(10);
   document.getElementById('new-card-front').value='';
   document.getElementById('new-card-back').value='';
   flashcardCurrentIdx = ch.flashcards.length-1;
@@ -1488,6 +2660,67 @@ function renderBadges() {
   });
 }
 
+// ===================== PROFILE =====================
+function renderProfile() {
+  document.getElementById('profile-name-input').value = state.userName || 'Sohum';
+  document.getElementById('profile-avatar').textContent = state.activeAvatar || '🧑‍🎓';
+  document.getElementById('profile-title-display').textContent = state.activeTitle || 'JEE Aspirant';
+
+  const allChaps = getAllChaptersFlat();
+  const doneCount = allChaps.filter(c=>c.status==='completed').length;
+  const pct = allChaps.length ? Math.round((doneCount/allChaps.length)*100) : 0;
+  document.getElementById('profile-completion').textContent = pct + '%';
+
+  document.getElementById('profile-longest-streak').textContent = state.longestStreak || 0;
+
+  const joinDate = state.joinDate ? new Date(state.joinDate) : new Date();
+  document.getElementById('profile-join-date').textContent = joinDate.toLocaleDateString('default',{month:'short',day:'numeric',year:'numeric'});
+
+  const totalSecs = (state.subjectSeconds.physics||0)+(state.subjectSeconds.chemistry||0)+(state.subjectSeconds.maths||0);
+  document.getElementById('profile-total-hours').textContent = Math.floor(totalSecs/3600) + 'h';
+
+  const grid = document.getElementById('profile-badges-grid');
+  grid.innerHTML = '';
+  BADGE_DEFS.forEach(b=>{
+    const earned = state.badges[b.id];
+    if (earned) grid.innerHTML += `<div class="badge-item earned"><div class="badge-icon">${b.icon}</div><div class="badge-name">${b.name}</div></div>`;
+  });
+  if (Object.keys(state.badges||{}).length===0) {
+    grid.innerHTML = '<div class="revision-empty" style="grid-column:1/-1">No achievements unlocked yet — keep studying!</div>';
+  }
+}
+
+function updateProfileName() {
+  const name = document.getElementById('profile-name-input').value.trim();
+  state.userName = name || 'Sohum';
+  save();
+  showToast('👤','Name updated!');
+}
+
+function confirmResetProgress() {
+  if (!confirm('This will permanently erase ALL your progress — chapters, XP, streaks, everything. This cannot be undone. Are you absolutely sure?')) return;
+  if (!confirm('Really sure? Type-confirm by clicking OK one more time to wipe everything.')) return;
+  state = defaultState();
+  save();
+  showToast('🔄','Progress reset. Starting fresh.');
+  showPage('dashboard', document.querySelector('.nav-tab'));
+  location.reload();
+}
+
+function exportProgressBackup() {
+  const dataStr = JSON.stringify(state, null, 2);
+  const blob = new Blob([dataStr], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `studyhub-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('💾','Backup downloaded!');
+}
+
 // ===================== MODAL & TOAST =====================
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function showToast(icon, msg) {
@@ -1508,6 +2741,8 @@ async function init() {
   updateCountdown();
   updateXP();
   updateStreak();
+  renderLifestyleWidget();
+  renderPyqDppWidget();
   updateSubjectStats(); updateMonthYearProgress();
   document.getElementById('stat-questions').textContent=state.totalQuestions;
   document.getElementById('hero-quote').textContent=quotes[Math.floor(Math.random()*quotes.length)];
@@ -1524,4 +2759,39 @@ async function init() {
   setInterval(updateCountdown,60000);
   startMidnightWatcher();
 }
-init();
+
+// ===================== PASSWORD GATE =====================
+// Simple shared-password gate, NOT real per-user authentication — its only
+// job is to keep casual visitors (e.g. a sibling with the link) from opening
+// the dashboard, not to secure sensitive data against a determined attacker.
+// The password is stored here in plain text in the frontend code; anyone who
+// views source can read it. That's an accepted tradeoff for "keep my sibling
+// out", not meant to protect against anything more serious.
+const GATE_PASSWORD = 'jay_jagannath1971';
+const GATE_SESSION_KEY = 'studyhub_gate_passed';
+
+function checkGatePassword() {
+  const input = document.getElementById('gate-password-input');
+  const errorEl = document.getElementById('gate-error');
+  if (input.value === GATE_PASSWORD) {
+    sessionStorage.setItem(GATE_SESSION_KEY, 'true');
+    document.getElementById('password-gate').style.display = 'none';
+    document.getElementById('boot-screen').style.display = 'flex';
+    init();
+  } else {
+    errorEl.style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
+}
+
+(function bootGate() {
+  if (sessionStorage.getItem(GATE_SESSION_KEY) === 'true') {
+    document.getElementById('password-gate').style.display = 'none';
+    document.getElementById('boot-screen').style.display = 'flex';
+    init();
+  } else {
+    document.getElementById('password-gate').style.display = 'flex';
+    document.getElementById('gate-password-input').focus();
+  }
+})();

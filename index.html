@@ -11,8 +11,17 @@
 <body>
 
 
+<!-- PASSWORD GATE: shown until the correct password is entered for this browser session -->
+<div id="password-gate" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;gap:20px;padding:20px;">
+  <div style="font-family:'Orbitron',monospace;font-weight:900;font-size:1.6rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">⚡ STUDYHUB</div>
+  <div style="color:var(--muted);font-size:0.85rem;text-align:center;max-width:280px">This dashboard is private. Enter the password to continue.</div>
+  <input type="password" id="gate-password-input" placeholder="Password" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:0.95rem;width:240px;text-align:center" onkeydown="if(event.key==='Enter')checkGatePassword()">
+  <button onclick="checkGatePassword()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Enter</button>
+  <div id="gate-error" style="color:var(--danger);font-size:0.8rem;display:none">Wrong password — try again.</div>
+</div>
+
 <!-- BOOT SCREEN: shown briefly while saved progress loads from storage -->
-<div id="boot-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;">
+<div id="boot-screen" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;display:none;">
   <div style="font-family:'Orbitron',monospace;font-weight:900;font-size:1.4rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">⚡ STUDYHUB</div>
   <div style="color:var(--muted);font-size:0.85rem;">Loading your progress...</div>
 </div>
@@ -36,11 +45,17 @@
       <button class="nav-tab" onclick="showPage('achievements',this)">🏆 Badges</button>
       <button class="nav-tab" onclick="showPage('syllabus',this)">📋 Syllabus</button>
       <button class="nav-tab" onclick="showPage('boards',this)">🎓 Boards</button>
+      <button class="nav-tab" onclick="showPage('vision',this)">🌟 Vision</button>
+      <button class="nav-tab" onclick="showPage('months',this)">📅 Months</button>
+      <button class="nav-tab" onclick="showPage('mocktests',this)">📊 Mock Tests</button>
+      <button class="nav-tab" onclick="showPage('quiz',this)">🧩 Quiz</button>
+      <button class="nav-tab" onclick="showPage('formulasheet',this)">📐 Formula Sheet</button>
     </div>
     <div class="nav-right">
       <div id="save-indicator" style="font-size:0.72rem;color:var(--muted);opacity:0;transition:opacity 0.3s;white-space:nowrap;">✅ Saved</div>
       <div class="coins-badge" id="nav-coins">🪙 0</div>
       <div class="xp-badge" id="nav-xp">⚡ 0 XP</div>
+      <div id="nav-profile-icon" onclick="showPage('profile', null)" style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s" title="Profile" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🧑‍🎓</div>
     </div>
   </div>
 </nav>
@@ -144,6 +159,68 @@
         </div>
       </div>
     </div>
+
+    <!-- LIFESTYLE TRACKER -->
+    <div class="card mb-16">
+      <div class="card-title">🌿 Today's Lifestyle</div>
+      <div class="lifestyle-grid">
+        <div class="lifestyle-item">
+          <div class="lifestyle-icon">😴</div>
+          <div class="lifestyle-label">Sleep (hours)</div>
+          <div class="lifestyle-control">
+            <button class="lifestyle-btn" onclick="adjustSleep(-0.5)">−</button>
+            <span class="lifestyle-value" id="sleep-value">0</span>
+            <button class="lifestyle-btn" onclick="adjustSleep(0.5)">+</button>
+          </div>
+        </div>
+        <div class="lifestyle-item">
+          <div class="lifestyle-icon">💧</div>
+          <div class="lifestyle-label">Water (glasses)</div>
+          <div class="lifestyle-control">
+            <button class="lifestyle-btn" onclick="adjustWater(-1)">−</button>
+            <span class="lifestyle-value" id="water-value">0</span>
+            <button class="lifestyle-btn" onclick="adjustWater(1)">+</button>
+          </div>
+        </div>
+        <div class="lifestyle-item">
+          <div class="lifestyle-icon">📵</div>
+          <div class="lifestyle-label">Dopamine Detox</div>
+          <div class="lifestyle-control">
+            <button class="btn btn-success btn-sm" id="detox-btn" onclick="toggleDetox()">Mark Clean Day</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PYQ / DPP TRACKER -->
+    <div class="card mb-16">
+      <div class="card-title">📑 PYQ &amp; DPP Tracker</div>
+      <div class="pyq-dpp-grid">
+        <div class="pyq-dpp-row">
+          <div class="pyq-dpp-label">⚛️ Physics</div>
+          <div class="pyq-dpp-counter">PYQ <span id="pyq-physics" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustPyq('physics',1)">+</button></div>
+          <div class="pyq-dpp-counter">DPP <span id="dpp-physics" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustDpp('physics',1)">+</button></div>
+        </div>
+        <div class="pyq-dpp-row">
+          <div class="pyq-dpp-label">🧪 Chemistry</div>
+          <div class="pyq-dpp-counter">PYQ <span id="pyq-chemistry" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustPyq('chemistry',1)">+</button></div>
+          <div class="pyq-dpp-counter">DPP <span id="dpp-chemistry" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustDpp('chemistry',1)">+</button></div>
+        </div>
+        <div class="pyq-dpp-row">
+          <div class="pyq-dpp-label">📐 Maths</div>
+          <div class="pyq-dpp-counter">PYQ <span id="pyq-maths" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustPyq('maths',1)">+</button></div>
+          <div class="pyq-dpp-counter">DPP <span id="dpp-maths" class="font-mono">0</span> <button class="lifestyle-btn" onclick="adjustDpp('maths',1)">+</button></div>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:10px;font-size:0.72rem;color:var(--muted)">Total: <span id="pyq-dpp-total" class="font-mono">0</span> solved</div>
+    </div>
+
+    <!-- END OF DAY REVIEW -->
+    <div class="card mb-16" style="text-align:center">
+      <button class="btn btn-primary" style="font-size:0.95rem;padding:14px 28px" onclick="openEndOfDayReview()">🌙 End-of-Day Review</button>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:10px">See today's full summary before you sleep</div>
+    </div>
+
     <!-- BOSS BATTLE -->
     <div class="boss-card" id="boss-section">
       <div class="boss-title">⚔️ CURRENT BOSS BATTLE</div>
@@ -352,12 +429,233 @@
 <!-- ============ BOARDS (placeholder — content to be added later) ============ -->
 <div class="page" id="page-boards">
   <div class="main">
-    <div class="chapter-title" style="margin-bottom:8px">🎓 Boards</div>
-    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">This page is reserved for your Boards (Class 12) tracking — separate from JEE prep. Tell me what you want here and I'll build it.</div>
-    <div class="card" style="text-align:center;padding:48px 24px;color:var(--muted)">
-      <div style="font-size:2.5rem;margin-bottom:12px">🚧</div>
-      <div style="font-size:0.95rem">Empty for now — waiting on your spec.</div>
+    <div class="chapter-title" style="margin-bottom:8px">🎓 Boards (Class 12)</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Mark off NCERT chapters as you finish them in your notebook. Separate from JEE prep tracking.</div>
+
+    <div class="subject-tabs mb-16" id="boards-subject-tabs">
+      <button class="subject-tab active" onclick="showBoardsSubject('english',this)">📖 English</button>
+      <button class="subject-tab" onclick="showBoardsSubject('maths',this)">📐 Maths</button>
+      <button class="subject-tab" onclick="showBoardsSubject('physics',this)">⚛️ Physics</button>
+      <button class="subject-tab" onclick="showBoardsSubject('chemistry',this)">🧪 Chemistry</button>
+      <button class="subject-tab" onclick="showBoardsSubject('pe',this)">🏃 P.E.</button>
     </div>
+
+    <div id="boards-content"></div>
+  </div>
+</div>
+
+<!-- ============ VISION PAGE ============ -->
+<div class="page" id="page-vision">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🌟 Vision</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:28px">Your evolving identity, messages from your future self, and the goals pulling you forward.</div>
+
+    <div class="section-title mb-16">🦋 Avatar Evolution</div>
+    <div class="card mb-16" style="text-align:center;padding:28px">
+      <div style="font-size:3.5rem;margin-bottom:10px" id="avatar-evo-icon">🌱</div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:4px" id="avatar-evo-name">Seedling Scholar</div>
+      <div style="font-size:0.78rem;color:var(--muted)" id="avatar-evo-next">Reach Level 2 to evolve</div>
+    </div>
+
+    <div class="section-title mb-16">🧗 Future You — The Climb</div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">Every level you gain, he climbs one step higher. Watch him reach the top by January 2027.</div>
+    <div class="card mb-16" style="padding:20px 10px">
+      <div id="climb-stage-label" style="text-align:center;font-size:0.82rem;color:var(--accent3);font-weight:600;margin-bottom:12px">Step 1 of 8 — Level 1</div>
+      <svg id="climb-svg" viewBox="0 0 360 220" style="width:100%;max-width:380px;display:block;margin:0 auto">
+        <!-- staircase steps, drawn back to front -->
+        <g id="climb-stairs"></g>
+        <!-- climbing figure, position controlled by JS -->
+        <g id="climb-figure"></g>
+      </svg>
+    </div>
+
+    <div class="section-title mb-16">💌 Messages From Future You</div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">Unlocked automatically at real milestones — written for the version of you who gets there.</div>
+    <div id="future-you-list" class="mb-16"></div>
+
+    <div class="section-title mb-16">🎯 Vision Board</div>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">What you're working toward. Add anything — colleges, feelings, moments you're chasing.</div>
+    <div class="flashcard-add-row mb-16">
+      <input class="modal-input" id="vision-input" placeholder="e.g. Walking into IIT Guwahati orientation" style="margin-bottom:0">
+      <button class="btn btn-primary" onclick="addVisionItem()">+ Add</button>
+    </div>
+    <div id="vision-board-list" class="shop-grid"></div>
+  </div>
+</div>
+
+<!-- ============ PROFILE PAGE ============ -->
+<div class="page" id="page-profile">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">👤 Profile</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Your StudyHub identity and lifetime stats.</div>
+
+    <div class="card mb-16" style="text-align:center;padding:32px">
+      <div style="font-size:3rem;margin-bottom:8px" id="profile-avatar">🧑‍🎓</div>
+      <input class="modal-input" id="profile-name-input" style="text-align:center;font-size:1.1rem;font-weight:700;max-width:280px;margin:0 auto 6px" onchange="updateProfileName()">
+      <div style="color:var(--accent3);font-size:0.85rem;font-weight:600" id="profile-title-display">JEE Aspirant</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:8px">🎯 Target: JEE Main + Advanced 2027</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:16px">
+      <div class="card" style="text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent2)" id="profile-completion">0%</div>
+        <div style="font-size:0.72rem;color:var(--muted)">Overall Completion</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent3)" id="profile-longest-streak">0</div>
+        <div style="font-size:0.72rem;color:var(--muted)">Longest Streak (days)</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent4)" id="profile-join-date">—</div>
+        <div style="font-size:0.72rem;color:var(--muted)">Join Date</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent)" id="profile-total-hours">0h</div>
+        <div style="font-size:0.72rem;color:var(--muted)">Total Study Hours</div>
+      </div>
+    </div>
+
+    <div class="section-title mb-16">🏆 Achievements</div>
+    <div class="badges-grid mb-16" id="profile-badges-grid"></div>
+
+    <div class="section-title mb-16">⚙️ Settings</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.85rem">Reset all progress</span>
+        <button class="btn btn-danger btn-sm" onclick="confirmResetProgress()">Reset</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+        <span style="font-size:0.85rem">Export progress as backup file</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportProgressBackup()">Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MONTHS PAGE ============ -->
+<div class="page" id="page-months">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">📅 Monthly Chapter Plans</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Pick exactly 4 chapters per subject (12 total) as your plan for the month, then track progress against it.</div>
+
+    <div class="card mb-16">
+      <div class="card-title">Select Month</div>
+      <select class="modal-input" id="months-selector" onchange="renderMonthPlan()"></select>
+    </div>
+
+    <div id="month-plan-content"></div>
+  </div>
+</div>
+
+<!-- ============ MOCK TESTS PAGE ============ -->
+<div class="page" id="page-mocktests">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">📊 Mock Test Dashboard</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Log every mock test — yours and the ones from other classes — and track your trajectory.</div>
+
+    <div class="card mb-16">
+      <div class="card-title">➕ Log a Mock Test</div>
+      <input class="modal-input" id="mock-name" placeholder="Test name (e.g. PW Major Test 4)">
+      <input class="modal-input" id="mock-date" type="date">
+      <textarea class="modal-input" id="mock-syllabus" placeholder="Syllabus covered (e.g. Kinematics, NLM, Mole Concept...)" style="min-height:60px"></textarea>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+        <div><label class="sim-label">⚛️ Physics</label><input class="modal-input" id="mock-phy" type="number" placeholder="Marks" style="margin-bottom:0"></div>
+        <div><label class="sim-label">🧪 Chemistry</label><input class="modal-input" id="mock-chem" type="number" placeholder="Marks" style="margin-bottom:0"></div>
+        <div><label class="sim-label">📐 Maths</label><input class="modal-input" id="mock-math" type="number" placeholder="Marks" style="margin-bottom:0"></div>
+      </div>
+      <input class="modal-input" id="mock-max" type="number" placeholder="Max marks possible (e.g. 300)">
+      <button class="btn btn-primary" style="width:100%" onclick="addMockTest()">Save Mock Test</button>
+    </div>
+
+    <div class="section-title mb-16">📈 Trend</div>
+    <div class="card mb-16"><canvas id="mockTrendChart" height="90"></canvas></div>
+
+    <div class="section-title mb-16">🔮 Year-End Predictor</div>
+    <div class="card mb-16" id="mock-predictor-card">
+      <div class="revision-empty">Log at least 2 mock tests to see a trend-based prediction.</div>
+    </div>
+
+    <div class="section-title mb-16">📋 Test History</div>
+    <div id="mock-test-list"></div>
+  </div>
+</div>
+
+<!-- ============ QUIZ PAGE ============ -->
+<div class="page" id="page-quiz">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🧩 Quiz</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Practice mode: no timer, take your time. Quiz mode: timed, scored, like the real thing.</div>
+
+    <div id="quiz-setup">
+      <div class="card mb-16">
+        <div class="card-title">Set Up Your Quiz</div>
+        <select class="modal-input" id="quiz-subject" onchange="populateQuizChapterDropdown()">
+          <option value="physics">⚛️ Physics</option>
+          <option value="chemistry">🧪 Chemistry</option>
+          <option value="maths">📐 Maths</option>
+        </select>
+        <select class="modal-input" id="quiz-chapter">
+          <option value="">All Chapters</option>
+        </select>
+        <select class="modal-input" id="quiz-difficulty">
+          <option value="easy">🟢 Easy</option>
+          <option value="mid">🟡 Mid Level</option>
+          <option value="hard">🔴 Hard (JEE PYQ style)</option>
+        </select>
+        <div class="flashcard-deck-select mb-16">
+          <div class="flashcard-chip active" id="mode-practice" onclick="setQuizMode('practice')">🧘 Practice Mode</div>
+          <div class="flashcard-chip" id="mode-timed" onclick="setQuizMode('timed')">⏱️ Quiz Mode (Timed)</div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="startQuiz()">Start Quiz</button>
+      </div>
+      <div class="section-title mb-16">📋 Quiz History</div>
+      <div id="quiz-history-list"></div>
+    </div>
+
+    <div id="quiz-active" style="display:none">
+      <div class="card mb-16">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span class="revision-stage-pill" id="quiz-progress-pill">Q1 / 10</span>
+          <span class="revision-stage-pill" id="quiz-timer-pill" style="display:none">⏱️ --:--</span>
+        </div>
+        <div style="font-size:0.95rem;font-weight:600;margin-bottom:18px" id="quiz-question-text"></div>
+        <div id="quiz-options-list"></div>
+        <div class="modal-btns" style="margin-top:18px">
+          <button class="btn btn-secondary" onclick="quitQuiz()">Quit</button>
+          <button class="btn btn-primary" id="quiz-next-btn" onclick="nextQuizQuestion()">Next ➡</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-results" style="display:none">
+      <div class="card mb-16" style="text-align:center;padding:32px">
+        <div style="font-size:2.5rem;margin-bottom:10px">🏁</div>
+        <div style="font-family:'Orbitron',monospace;font-weight:700;font-size:1.3rem;margin-bottom:6px" id="quiz-score-text">0/10</div>
+        <div style="color:var(--muted);font-size:0.85rem;margin-bottom:18px" id="quiz-score-sub"></div>
+        <button class="btn btn-primary" onclick="backToQuizSetup()">Take Another Quiz</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FORMULA SHEET PAGE ============ -->
+<div class="page" id="page-formulasheet">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">📐 Formula Sheet</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Add a slot per chapter, then fill in your own formulas. Use the chapter dropdown to organize by subject.</div>
+
+    <div class="card mb-16">
+      <div class="card-title">➕ Add Chapter Slot</div>
+      <select class="modal-input" id="formula-subject-select">
+        <option value="physics">⚛️ Physics</option>
+        <option value="chemistry">🧪 Chemistry</option>
+        <option value="maths">📐 Maths</option>
+      </select>
+      <input class="modal-input" id="formula-chapter-input" placeholder="Chapter name (e.g. Rotational Motion)">
+      <button class="btn btn-primary" style="width:100%" onclick="addFormulaSheetSlot()">Add Slot</button>
+    </div>
+
+    <div id="formula-sheet-list"></div>
   </div>
 </div>
 
@@ -506,7 +804,7 @@
 <div class="modal-overlay" id="log-chapter-modal">
   <div class="modal">
     <div class="modal-title">📅 Add Chapter Completion</div>
-    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Marks a chapter as completed and counts it toward the month you pick — useful for backfilling chapters you finished earlier.</div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">Marks a chapter as completed and counts it toward the month you pick.</div>
     <select class="modal-input" id="log-chapter-subject" onchange="populateLogChapterDropdown()">
       <option value="physics">⚛️ Physics</option>
       <option value="chemistry">🧪 Chemistry</option>
@@ -517,6 +815,17 @@
     <div class="modal-btns">
       <button class="btn btn-secondary" onclick="closeModal('log-chapter-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmLogChapter()">Add ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- END OF DAY REVIEW MODAL -->
+<div class="modal-overlay" id="end-of-day-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">🌙 End-of-Day Review</div>
+    <div id="eod-content"></div>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal('end-of-day-modal')">Close</button>
     </div>
   </div>
 </div>
