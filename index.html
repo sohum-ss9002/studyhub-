@@ -31,6 +31,9 @@
 <!-- NAV -->
 <nav>
   <div class="nav-inner">
+    <button id="hamburger-btn" onclick="toggleMobileMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
     <div class="nav-logo">⚡ STUDYHUB</div>
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showPage('dashboard',this)">🏠 Home</button>
@@ -55,10 +58,34 @@
       <div id="save-indicator" style="font-size:0.72rem;color:var(--muted);opacity:0;transition:opacity 0.3s;white-space:nowrap;">✅ Saved</div>
       <div class="coins-badge" id="nav-coins">🪙 0</div>
       <div class="xp-badge" id="nav-xp">⚡ 0 XP</div>
-      <div id="nav-profile-icon" onclick="showPage('profile', null)" style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s" title="Profile" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🧑‍🎓</div>
+      <div id="nav-profile-icon" onclick="showPage('profile', null)" style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s;flex-shrink:0" title="Profile" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🧑‍🎓</div>
     </div>
   </div>
 </nav>
+
+<!-- MOBILE SLIDE-OUT MENU -->
+<div id="mobile-menu-overlay" onclick="toggleMobileMenu()"></div>
+<div id="mobile-menu">
+  <div style="font-family:'Orbitron',monospace;font-weight:900;font-size:1.1rem;padding:20px 20px 12px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">⚡ STUDYHUB</div>
+  <button class="mobile-nav-tab" onclick="showPageMobile('dashboard')">🏠 Home</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('chapters')">📚 Chapters</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('timer')">⏱️ Timer</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('accountability')">✅ Daily Check</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('revision')">🔁 Revision</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('quests')">🗺️ Quests</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('skilltree')">🌳 Skill Tree</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('shop')">🛒 Shop</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('analytics')">📊 Analytics</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('achievements')">🏆 Badges</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('syllabus')">📋 Syllabus</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('boards')">🎓 Boards</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('vision')">🌟 Vision</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('months')">📅 Months</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('mocktests')">📊 Mock Tests</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('quiz')">🧩 Quiz</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('formulasheet')">📐 Formula Sheet</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('profile')">👤 Profile</button>
+</div>
 
 <!-- ============ DASHBOARD ============ -->
 <div class="page active" id="page-dashboard">

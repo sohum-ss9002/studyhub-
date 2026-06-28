@@ -20,6 +20,41 @@
   .nav-tab:hover { color:var(--text); background:var(--surface); }
   .nav-tab.active { color:var(--accent2); background:rgba(6,182,212,0.1); }
   .nav-right { display:flex; align-items:center; gap:12px; }
+
+  /* MOBILE NAV: hamburger + slide-out menu */
+  #hamburger-btn { display:none; flex-direction:column; justify-content:center; gap:5px; width:38px; height:38px; background:var(--surface); border:1px solid var(--border); border-radius:8px; cursor:pointer; flex-shrink:0; }
+  #hamburger-btn span { width:18px; height:2px; background:var(--text); margin:0 auto; border-radius:2px; }
+  #mobile-menu-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1998; display:none; }
+  #mobile-menu-overlay.open { display:block; }
+  #mobile-menu { position:fixed; top:0; left:0; bottom:0; width:78vw; max-width:300px; background:var(--card2); z-index:1999; transform:translateX(-100%); transition:transform 0.25s ease; overflow-y:auto; display:flex; flex-direction:column; padding-bottom:20px; }
+  #mobile-menu.open { transform:translateX(0); }
+  .mobile-nav-tab { display:block; width:100%; text-align:left; background:none; border:none; border-bottom:1px solid var(--border); color:var(--text); padding:14px 20px; font-size:0.88rem; cursor:pointer; font-family:'Inter',sans-serif; }
+  .mobile-nav-tab:active { background:var(--surface); }
+
+  /* Hamburger menu replaces the full tab bar on ALL screen sizes now */
+  #hamburger-btn { display:flex; }
+  .nav-tabs { display:none; }
+  .nav-inner { justify-content:space-between; gap:8px; }
+
+  @media (max-width:700px) {
+    .nav-logo { font-size:1rem; }
+    .coins-badge, .xp-badge { font-size:0.68rem; padding:4px 8px; }
+    #save-indicator { display:none; }
+  }
+
+  @media (max-width:700px) {
+    .main { padding:16px 12px; }
+    .stats-grid { grid-template-columns:repeat(2,1fr) !important; }
+    .pyq-dpp-row { grid-template-columns:1fr !important; gap:6px; text-align:left; }
+    .pyq-dpp-counter { justify-content:flex-start !important; }
+    .timer-subject-grid { grid-template-columns:1fr !important; }
+    .subtask-grid { grid-template-columns:1fr !important; }
+    .sim-inputs { grid-template-columns:1fr !important; }
+    .hero { flex-direction:column; align-items:flex-start; gap:16px; }
+    .countdown-box { align-self:stretch; }
+    .shop-grid { grid-template-columns:repeat(2,1fr) !important; }
+    .badges-grid { grid-template-columns:repeat(2,1fr) !important; }
+  }
   .xp-badge { background:linear-gradient(135deg,var(--accent),#9333ea); padding:6px 14px; border-radius:20px; font-size:0.8rem; font-weight:700; font-family:'Orbitron',monospace; }
   .page { display:none; }
   .page.active { display:block; }

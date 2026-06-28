@@ -33,7 +33,7 @@ function makeChapter(name, weight) {
   return { name, status:'not-started', weight, questions:0, confidence:0,
     subtasks:{ theory:false, exercises:false, pyqs:false, reading:false },
     revisionLink:'', lastRevised:null, completedDate:null,
-    revisionSchedule:[], flashcards:[],
+    revisionSchedule:[], flashcards:[], lecturesTotal:0, lecturesCompleted:0,
     subtopics: (DEFAULT_SUBTOPICS[name]||[]).map(n=>makeSubtopic(n)) };
 }
 
@@ -1281,6 +1281,8 @@ function migrateChapterFields() {
       if (!Array.isArray(ch.flashcards)) ch.flashcards = [];
       if (!Array.isArray(ch.revisionSchedule)) ch.revisionSchedule = [];
       if (!Array.isArray(ch.subtopics)) ch.subtopics = [];
+      if (typeof ch.lecturesTotal !== 'number') ch.lecturesTotal = 0;
+      if (typeof ch.lecturesCompleted !== 'number') ch.lecturesCompleted = 0;
       // Backfill the standard sub-topic breakdown for chapters that don't have any yet
       // (covers both brand-new saves and saves from before this feature existed).
       if (ch.subtopics.length===0 && DEFAULT_SUBTOPICS[ch.name]) {
@@ -1325,6 +1327,21 @@ function migrateChapterFields() {
 }
 
 // ===================== PAGES =====================
+function toggleMobileMenu() {
+  document.getElementById('mobile-menu').classList.toggle('open');
+  document.getElementById('mobile-menu-overlay').classList.toggle('open');
+}
+
+function showPageMobile(page) {
+  // Find the matching desktop tab (if any) so the active-state styling stays
+  // in sync even though the click originated from the mobile menu.
+  const desktopTabs = document.querySelectorAll('.nav-tabs .nav-tab');
+  let matchedTab = null;
+  desktopTabs.forEach(t=>{ if (t.getAttribute('onclick')?.includes(`'${page}'`)) matchedTab = t; });
+  showPage(page, matchedTab);
+  toggleMobileMenu();
+}
+
 function showPage(page, tabEl) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -1691,7 +1708,22 @@ function renderChapters() {
         <div class="subtask-grid">
           <div class="subtask-item ${st.theory?'done':''}" onclick="toggleSubtask('${currentSubjectView}',${i},'theory')">
             <div class="subtask-check">${st.theory?'✓':''}</div>
-            <div><div class="subtask-label">📖 Theory</div><div style="font-size:0.72rem;color:var(--muted)">Read & understood</div></div>
+            <div style="flex:1">
+              <div class="subtask-label">📖 Theory</div>
+              <div style="font-size:0.72rem;color:var(--muted)">Read & understood</div>
+              <div onclick="event.stopPropagation()" style="margin-top:6px">
+                ${ch.lecturesTotal>0 ? `
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <button class="lifestyle-btn" style="width:22px;height:22px;font-size:0.85rem" onclick="tickLecture('${currentSubjectView}',${i})" ${ch.lecturesCompleted>=ch.lecturesTotal?'disabled':''}>✓</button>
+                    <span style="font-size:0.75rem;color:var(--accent2);font-weight:700">${ch.lecturesCompleted}/${ch.lecturesTotal} lectures</span>
+                    <span style="font-size:0.68rem;color:var(--muted);text-decoration:underline;cursor:pointer" onclick="editLectureTotal('${currentSubjectView}',${i})">edit</span>
+                  </div>` : `
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="number" min="1" id="lecture-total-input-${currentSubjectView}-${i}" placeholder="Total lectures?" style="width:90px;padding:4px 8px;font-size:0.72rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+                    <button class="lifestyle-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="setLectureTotal('${currentSubjectView}',${i})">✓</button>
+                  </div>`}
+              </div>
+            </div>
           </div>
           <div class="subtask-item ${st.exercises?'done':''}" onclick="toggleSubtask('${currentSubjectView}',${i},'exercises')">
             <div class="subtask-check">${st.exercises?'✓':''}</div>
@@ -1754,6 +1786,49 @@ function toggleChapterExpand(subj, i) {
   const icon = document.getElementById(`expandicon-${subj}-${i}`);
   el.classList.toggle('open');
   icon.classList.toggle('open');
+}
+
+function setLectureTotal(subj, i) {
+  const input = document.getElementById(`lecture-total-input-${subj}-${i}`);
+  const n = parseInt(input.value);
+  if (!n || n<1) { showToast('⚠️','Enter a valid number of lectures!'); return; }
+  const ch = state.chapters[subj][i];
+  ch.lecturesTotal = n;
+  ch.lecturesCompleted = 0;
+  save();
+  renderChapters();
+  reopenChapterCard(subj, i);
+}
+
+function tickLecture(subj, i) {
+  const ch = state.chapters[subj][i];
+  if (ch.lecturesCompleted >= ch.lecturesTotal) return;
+  ch.lecturesCompleted += 1;
+  addXP(10);
+  if (ch.lecturesCompleted === ch.lecturesTotal) showToast('🎬', 'All lectures done for '+ch.name+'!');
+  save();
+  renderChapters();
+  reopenChapterCard(subj, i);
+}
+
+function editLectureTotal(subj, i) {
+  const ch = state.chapters[subj][i];
+  const newTotal = prompt('Total lectures for '+ch.name+':', ch.lecturesTotal);
+  const n = parseInt(newTotal);
+  if (!n || n<1) return;
+  ch.lecturesTotal = n;
+  if (ch.lecturesCompleted > n) ch.lecturesCompleted = n; // don't let completed exceed a lowered total
+  save();
+  renderChapters();
+  reopenChapterCard(subj, i);
+}
+
+function reopenChapterCard(subj, i) {
+  setTimeout(()=>{
+    const el = document.getElementById(`subtask-${subj}-${i}`);
+    const icon = document.getElementById(`expandicon-${subj}-${i}`);
+    if(el){el.classList.add('open');} if(icon){icon.classList.add('open');}
+  },10);
 }
 
 function toggleSubtask(subj, i, task) {
