@@ -58,6 +58,10 @@
       <div id="save-indicator" style="font-size:0.72rem;color:var(--muted);opacity:0;transition:opacity 0.3s;white-space:nowrap;">✅ Saved</div>
       <div class="coins-badge" id="nav-coins">🪙 0</div>
       <div class="xp-badge" id="nav-xp">⚡ 0 XP</div>
+      <div onclick="showPage('notifications', null)" style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s;flex-shrink:0;position:relative" title="Notifications" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        🔔
+        <span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:0.6rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;align-items:center;justify-content:center;padding:0 3px">0</span>
+      </div>
       <div id="nav-profile-icon" onclick="showPage('profile', null)" style="width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;transition:all 0.2s;flex-shrink:0" title="Profile" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">🧑‍🎓</div>
     </div>
   </div>
@@ -84,6 +88,7 @@
   <button class="mobile-nav-tab" onclick="showPageMobile('mocktests')">📊 Mock Tests</button>
   <button class="mobile-nav-tab" onclick="showPageMobile('quiz')">🧩 Quiz</button>
   <button class="mobile-nav-tab" onclick="showPageMobile('formulasheet')">📐 Formula Sheet</button>
+  <button class="mobile-nav-tab" onclick="showPageMobile('notifications')">🔔 Notifications</button>
   <button class="mobile-nav-tab" onclick="showPageMobile('profile')">👤 Profile</button>
 </div>
 
@@ -485,15 +490,11 @@
     </div>
 
     <div class="section-title mb-16">🧗 Future You — The Climb</div>
-    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">Every level you gain, he climbs one step higher. Watch him reach the top by January 2027.</div>
-    <div class="card mb-16" style="padding:20px 10px">
-      <div id="climb-stage-label" style="text-align:center;font-size:0.82rem;color:var(--accent3);font-weight:600;margin-bottom:12px">Step 1 of 8 — Level 1</div>
-      <svg id="climb-svg" viewBox="0 0 360 220" style="width:100%;max-width:380px;display:block;margin:0 auto">
-        <!-- staircase steps, drawn back to front -->
-        <g id="climb-stairs"></g>
-        <!-- climbing figure, position controlled by JS -->
-        <g id="climb-figure"></g>
-      </svg>
+    <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">Every level you gain unlocks a new step — double-click him to send him up. Drag to rotate, scroll to zoom.</div>
+    <div class="card mb-16" style="padding:14px">
+      <div id="climb-stage-label" style="text-align:center;font-size:0.82rem;color:var(--accent3);font-weight:600;margin-bottom:8px">Step 1 of 8 — Level 1</div>
+      <div id="climb-3d-container" style="width:100%;height:320px;border-radius:12px;overflow:hidden;cursor:grab;background:radial-gradient(ellipse at 50% 30%, #1a1a2e 0%, #0a0a0f 100%)"></div>
+      <div style="text-align:center;font-size:0.68rem;color:var(--muted);margin-top:8px">🖱️ Drag to rotate · Scroll to zoom</div>
     </div>
 
     <div class="section-title mb-16">💌 Messages From Future You</div>
@@ -511,6 +512,15 @@
 </div>
 
 <!-- ============ PROFILE PAGE ============ -->
+<!-- ============ NOTIFICATIONS PAGE ============ -->
+<div class="page" id="page-notifications">
+  <div class="main">
+    <div class="chapter-title" style="margin-bottom:4px">🔔 Notifications</div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:24px">Level-ups and milestones land here, even if you miss the toast.</div>
+    <div id="notifications-list"></div>
+  </div>
+</div>
+
 <div class="page" id="page-profile">
   <div class="main">
     <div class="chapter-title" style="margin-bottom:4px">👤 Profile</div>
@@ -868,8 +878,11 @@
 
 
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="storage.js"></script>
 <script src="app.js"></script>
 </body>

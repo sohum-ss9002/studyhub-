@@ -224,6 +224,8 @@ function defaultState() {
     visionBoard: [], // [{ id, text, icon }]
     futureYouUnlocked: [], // ids of milestone messages already revealed
     avatarEvolutionStage: 0, // auto-progresses with level, independent of shop-bought avatars
+    notifications: [], // [{ id, icon, title, message, date, read }]
+    climbCurrentStep: 0, // the step the figure is ACTUALLY standing on right now (0-based) — only moves via double-click, even if level has gone higher
 
     // ===== MOCK TESTS, QUIZZES, FORMULA SHEET, PYQ/DPP =====
     pyqCount: { physics:0, chemistry:0, maths:0 },
@@ -1365,6 +1367,7 @@ function showPage(page, tabEl) {
   if (page === 'formulasheet') renderFormulaSheet();
   if (page === 'boards') renderBoardsChapters();
   if (page === 'profile') renderProfile();
+  if (page === 'notifications') renderNotifications();
 }
 
 // ===================== COUNTDOWN =====================
@@ -1476,72 +1479,230 @@ function renderAvatarEvolution() {
 // one stair step per level, 8 steps total matching the 8 LEVELS/avatar stages.
 const CLIMB_TOTAL_STEPS = 8;
 
-function buildStaircaseSVG() {
-  const stepW = 40, stepH = 22;
-  let stairs = '';
-  // Steps drawn right-to-left, ascending — step 1 lowest/rightmost, step 8 highest/leftmost
+// Three.js scene state — kept outside renderClimbVisual so we only build the
+// scene once and just update the figure's target position on later calls.
+let climbScene = null, climbCamera = null, climbRenderer = null, climbControls = null;
+let climbFigureGroup = null, climbAnimFrameId = null;
+let climbTargetY = 0, climbTargetX = 0, climbTargetZ = 0;
+
+const CLIMB_STEP_W = 1.6, CLIMB_STEP_H = 0.55, CLIMB_STEP_D = 1.4;
+
+function getClimb3DStepPosition(stepIdx) {
+  // Mirrors the old 2D layout logic but in 3D space: steps ascend along -Z
+  // (into the scene) and +Y (upward), positioned for the figure's feet.
+  return {
+    x: 0,
+    y: stepIdx * CLIMB_STEP_H + CLIMB_STEP_H/2 + 0.05,
+    z: -stepIdx * CLIMB_STEP_D * 0.85,
+  };
+}
+
+function buildClimb3DFigure() {
+  // A simple low-poly figure built from primitives: light skin tone,
+  // muscular torso (broad shoulders via a tapered cylinder), spiked hair
+  // made from small cones. No external models needed.
+  const group = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf5cba7, roughness: 0.6 });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.5 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+  const hair = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.4 });
+
+  // legs
+  const legGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.5, 8);
+  const legL = new THREE.Mesh(legGeo, pants); legL.position.set(-0.1, 0.25, 0); group.add(legL);
+  const legR = new THREE.Mesh(legGeo, pants); legR.position.set(0.1, 0.25, 0); group.add(legR);
+
+  // torso — tapered cylinder for a broad-shoulders-to-waist muscular look
+  const torsoGeo = new THREE.CylinderGeometry(0.32, 0.22, 0.55, 8);
+  const torso = new THREE.Mesh(torsoGeo, shirt); torso.position.set(0, 0.78, 0); group.add(torso);
+
+  // arms
+  const armGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.45, 8);
+  const armL = new THREE.Mesh(armGeo, skin); armL.position.set(-0.38, 0.78, 0); armL.rotation.z = 0.25; group.add(armL);
+  const armR = new THREE.Mesh(armGeo, skin); armR.position.set(0.38, 0.78, 0); armR.rotation.z = -0.25; group.add(armR);
+
+  // neck + head
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.1,8), skin); neck.position.set(0,1.1,0); group.add(neck);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), skin); head.position.set(0,1.32,0); group.add(head);
+
+  // spiked hair — 5 small cones fanned across the top of the head
+  const spikePositions = [-0.16,-0.08,0,0.08,0.16];
+  spikePositions.forEach((sx,idx)=>{
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, idx===2?0.22:0.16, 6), hair);
+    spike.position.set(sx, 1.5 + (idx===2?0.04:0), 0);
+    spike.rotation.z = sx*0.6;
+    group.add(spike);
+  });
+
+  group.traverse(obj=>{ if(obj.isMesh){ obj.castShadow = true; obj.receiveShadow = true; } });
+  return group;
+}
+
+function buildClimb3DStaircase(scene) {
+  const stepMat1 = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.7 });
+  const stepMat2 = new THREE.MeshStandardMaterial({ color: 0x16213e, roughness: 0.7 });
+  const stepGeo = new THREE.BoxGeometry(CLIMB_STEP_W, CLIMB_STEP_H, CLIMB_STEP_D);
   for (let i=0;i<CLIMB_TOTAL_STEPS;i++) {
-    const x = 320 - i*stepW*0.92;
-    const y = 200 - i*stepH;
-    stairs += `<rect x="${x-stepW}" y="${y}" width="${stepW+ (i===0?20:0)}" height="${220-y}" fill="${i%2===0?'#1a1a2e':'#16213e'}" stroke="#2a2a3e" stroke-width="1"/>`;
+    const pos = getClimb3DStepPosition(i);
+    // Each step is a riser block from the ground up to its own height, so it
+    // looks like a real staircase rather than floating platforms.
+    const riserGeo = new THREE.BoxGeometry(CLIMB_STEP_W, (i+1)*CLIMB_STEP_H, CLIMB_STEP_D);
+    const riser = new THREE.Mesh(riserGeo, i%2===0?stepMat1:stepMat2);
+    riser.position.set(pos.x, (i+1)*CLIMB_STEP_H/2, pos.z);
+    riser.castShadow = true; riser.receiveShadow = true;
+    scene.add(riser);
   }
-  document.getElementById('climb-stairs').innerHTML = stairs;
 }
 
-function getClimbStepPosition(stepIdx) {
-  // stepIdx is 0-based (0 = first step). Returns the {x,y} top-of-step coordinate
-  // for the figure's feet to stand on, matching buildStaircaseSVG's geometry.
-  const stepW = 40, stepH = 22;
-  const x = 320 - stepIdx*stepW*0.92 - stepW/2;
-  const y = 200 - stepIdx*stepH;
-  return { x, y };
-}
+function initClimb3DScene() {
+  const container = document.getElementById('climb-3d-container');
+  if (!container || typeof THREE === 'undefined') return false;
 
-function buildFigureSVG() {
-  // A simple vector figure: light skin tone, muscular torso (broad shoulders,
-  // tapered waist), spiked hair. Drawn once; only its outer <g transform>
-  // changes (via CSS transition) when the figure climbs.
-  return `
-    <g id="climb-figure-inner">
-      <!-- legs -->
-      <rect x="-7" y="10" width="6" height="16" rx="2" fill="#1e293b"/>
-      <rect x="1" y="10" width="6" height="16" rx="2" fill="#1e293b"/>
-      <!-- torso (muscular, tapered) -->
-      <path d="M -10 -14 Q -12 -2 -8 10 L 8 10 Q 12 -2 10 -14 Q 6 -18 0 -18 Q -6 -18 -10 -14 Z" fill="#7c3aed"/>
-      <!-- arms -->
-      <rect x="-14" y="-12" width="5" height="14" rx="2.5" fill="#f5cba7" transform="rotate(-12 -14 -12)"/>
-      <rect x="9" y="-12" width="5" height="14" rx="2.5" fill="#f5cba7" transform="rotate(12 14 -12)"/>
-      <!-- neck -->
-      <rect x="-3" y="-21" width="6" height="5" fill="#f5cba7"/>
-      <!-- head -->
-      <circle cx="0" cy="-27" r="8" fill="#f5cba7"/>
-      <!-- spiked hair -->
-      <path d="M -8 -32 L -6 -39 L -3 -33 L 0 -40 L 3 -33 L 6 -39 L 8 -32 Q 0 -36 -8 -32 Z" fill="#1a1a1a"/>
-    </g>`;
+  climbScene = new THREE.Scene();
+  climbCamera = new THREE.PerspectiveCamera(45, container.clientWidth/container.clientHeight, 0.1, 100);
+  climbCamera.position.set(4, 3.5, 5);
+
+  climbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  climbRenderer.setSize(container.clientWidth, container.clientHeight);
+  climbRenderer.shadowMap.enabled = true;
+  container.innerHTML = '';
+  container.appendChild(climbRenderer.domElement);
+
+  // lighting
+  climbScene.add(new THREE.AmbientLight(0x404060, 1.2));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  dirLight.position.set(5, 8, 5);
+  dirLight.castShadow = true;
+  climbScene.add(dirLight);
+  const accentLight = new THREE.PointLight(0x7c3aed, 1.5, 15);
+  accentLight.position.set(-3, 2, 2);
+  climbScene.add(accentLight);
+
+  buildClimb3DStaircase(climbScene);
+
+  climbFigureGroup = buildClimb3DFigure();
+  const initialStep = Math.min(state.climbCurrentStep||0, CLIMB_TOTAL_STEPS-1);
+  const initialPos = getClimb3DStepPosition(initialStep);
+  climbFigureGroup.position.set(initialPos.x, initialPos.y, initialPos.z);
+  climbTargetX = initialPos.x; climbTargetY = initialPos.y; climbTargetZ = initialPos.z;
+  climbScene.add(climbFigureGroup);
+
+  climbControls = new THREE.OrbitControls(climbCamera, climbRenderer.domElement);
+  climbControls.target.set(0, 1, -2);
+  climbControls.enableDamping = true;
+  climbControls.dampingFactor = 0.08;
+  climbControls.minDistance = 3;
+  climbControls.maxDistance = 12;
+  climbControls.maxPolarAngle = Math.PI/2 + 0.3;
+  climbControls.update();
+
+  function animate() {
+    climbAnimFrameId = requestAnimationFrame(animate);
+    // Smoothly ease the figure toward its target step each frame — this is
+    // what gives the "climbing" feel without needing sprite animation.
+    if (climbFigureGroup) {
+      climbFigureGroup.position.x += (climbTargetX - climbFigureGroup.position.x) * 0.06;
+      climbFigureGroup.position.y += (climbTargetY - climbFigureGroup.position.y) * 0.06;
+      climbFigureGroup.position.z += (climbTargetZ - climbFigureGroup.position.z) * 0.06;
+    }
+    climbControls.update();
+    climbRenderer.render(climbScene, climbCamera);
+  }
+  animate();
+
+  // Resize handling so the canvas matches its container on layout changes
+  window.addEventListener('resize', ()=>{
+    if (!container.clientWidth) return;
+    climbCamera.aspect = container.clientWidth/container.clientHeight;
+    climbCamera.updateProjectionMatrix();
+    climbRenderer.setSize(container.clientWidth, container.clientHeight);
+  });
+
+  // Double-click the figure specifically (not just anywhere in the scene) to
+  // trigger the climb — uses raycasting so OrbitControls' drag-to-rotate
+  // still works normally everywhere else on the canvas.
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  climbRenderer.domElement.addEventListener('dblclick', (event)=>{
+    const rect = climbRenderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, climbCamera);
+    const hits = raycaster.intersectObject(climbFigureGroup, true);
+    if (hits.length > 0) attemptClimb();
+  });
+
+  return true;
 }
 
 function renderClimbVisual() {
-  const svgStairs = document.getElementById('climb-stairs');
-  const svgFigure = document.getElementById('climb-figure');
-  if (!svgStairs || !svgFigure) return;
+  const container = document.getElementById('climb-3d-container');
+  if (!container) return;
 
-  buildStaircaseSVG();
-
-  const level = Math.min(state.level||1, CLIMB_TOTAL_STEPS);
-  const stepIdx = level - 1; // level 1 -> step 0 (bottom)
-  const pos = getClimbStepPosition(stepIdx);
-
-  // Build the figure group once, then just transition its transform —
-  // this is what gives the "climbing" feel without needing video/sprites.
-  if (!svgFigure.dataset.built) {
-    svgFigure.innerHTML = buildFigureSVG();
-    svgFigure.style.transition = 'transform 1.1s cubic-bezier(.34,1.56,.64,1)';
-    svgFigure.dataset.built = 'true';
+  if (!climbScene) {
+    const ok = initClimb3DScene();
+    if (!ok) return; // Three.js not loaded yet — will retry next render call
   }
-  svgFigure.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
 
+  // The figure only stands where state.climbCurrentStep says — NOT wherever
+  // your level currently is. Reaching a new level just makes a climb
+  // available; you have to double-click him to actually send him up.
+  const currentStep = Math.min(state.climbCurrentStep||0, CLIMB_TOTAL_STEPS-1);
+  const pos = getClimb3DStepPosition(currentStep);
+  climbTargetX = pos.x; climbTargetY = pos.y; climbTargetZ = pos.z;
+
+  const earnedStep = Math.min((state.level||1) - 1, CLIMB_TOTAL_STEPS-1);
   const label = document.getElementById('climb-stage-label');
-  if (label) label.textContent = `Step ${level} of ${CLIMB_TOTAL_STEPS} — Level ${state.level||1}`;
+  if (label) {
+    if (earnedStep > currentStep) {
+      label.textContent = `Step ${currentStep+1} of ${CLIMB_TOTAL_STEPS} — 🆙 New step unlocked! Double-click him to climb`;
+      label.style.color = 'var(--accent3)';
+    } else {
+      label.textContent = `Step ${currentStep+1} of ${CLIMB_TOTAL_STEPS} — Level ${state.level||1}`;
+      label.style.color = 'var(--accent3)';
+    }
+  }
+}
+
+function attemptClimb() {
+  const earnedStep = Math.min((state.level||1) - 1, CLIMB_TOTAL_STEPS-1);
+  const currentStep = state.climbCurrentStep||0;
+  if (earnedStep <= currentStep) {
+    showToast('🧗', 'Nothing to climb yet — level up first!');
+    return;
+  }
+  state.climbCurrentStep = earnedStep; // jump straight to the earned step, even if multiple levels behind
+  save();
+  const pos = getClimb3DStepPosition(earnedStep);
+  climbTargetX = pos.x; climbTargetY = pos.y; climbTargetZ = pos.z;
+
+  // Fire the celebration once the easing animation has had time to land —
+  // matches the ~0.06 lerp factor settling within roughly a second.
+  setTimeout(()=>{
+    fireClimbCelebration();
+    renderClimbVisual(); // refresh label now that he's landed
+  }, 1100);
+}
+
+function fireClimbCelebration() {
+  const container = document.getElementById('climb-3d-container');
+  if (!container) return;
+  const burst = document.createElement('div');
+  burst.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:10;';
+  container.style.position = 'relative';
+  const colors = ['#7c3aed','#06b6d4','#f59e0b','#10b981','#ef4444'];
+  let pieces = '';
+  for (let i=0;i<40;i++) {
+    const left = Math.random()*100;
+    const delay = Math.random()*0.3;
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    const isRibbon = Math.random()>0.5;
+    pieces += `<div style="position:absolute;top:-10px;left:${left}%;width:${isRibbon?'4px':'8px'};height:${isRibbon?'16px':'8px'};background:${color};border-radius:${isRibbon?'2px':'50%'};animation:confettiFall ${1.4+Math.random()}s ${delay}s ease-in forwards;opacity:0.9"></div>`;
+  }
+  burst.innerHTML = pieces;
+  container.appendChild(burst);
+  showToast('🎉', 'He made it to the next step!');
+  setTimeout(()=>burst.remove(), 2600);
 }
 
 function renderFutureYou() {
@@ -1609,7 +1770,11 @@ function addXP(amount) {
 function updateXP() {
   let level = 0;
   for (let i = LEVELS.length-1; i >= 0; i--) { if (state.xp >= LEVELS[i].min) { level=i; break; } }
+  const previousLevel = state.level || 1;
   state.level = level+1;
+  if (state.level > previousLevel) {
+    addNotification('🎉', 'Level Up!', `You reached Level ${state.level} — ${LEVELS[level].name}. Visit Vision to send Future You up the stairs!`);
+  }
   const curr = LEVELS[level].min;
   const next = LEVELS[level+1] ? LEVELS[level+1].min : curr+10000;
   const pct = Math.min(100,((state.xp-curr)/(next-curr))*100);
@@ -1710,18 +1875,18 @@ function renderChapters() {
             <div class="subtask-check">${st.theory?'✓':''}</div>
             <div style="flex:1">
               <div class="subtask-label">📖 Theory</div>
-              <div style="font-size:0.72rem;color:var(--muted)">Read & understood</div>
-              <div onclick="event.stopPropagation()" style="margin-top:6px">
-                ${ch.lecturesTotal>0 ? `
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <button class="lifestyle-btn" style="width:22px;height:22px;font-size:0.85rem" onclick="tickLecture('${currentSubjectView}',${i})" ${ch.lecturesCompleted>=ch.lecturesTotal?'disabled':''}>✓</button>
-                    <span style="font-size:0.75rem;color:var(--accent2);font-weight:700">${ch.lecturesCompleted}/${ch.lecturesTotal} lectures</span>
-                    <span style="font-size:0.68rem;color:var(--muted);text-decoration:underline;cursor:pointer" onclick="editLectureTotal('${currentSubjectView}',${i})">edit</span>
-                  </div>` : `
-                  <div style="display:flex;align-items:center;gap:6px">
-                    <input type="number" min="1" id="lecture-total-input-${currentSubjectView}-${i}" placeholder="Total lectures?" style="width:90px;padding:4px 8px;font-size:0.72rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text)">
-                    <button class="lifestyle-btn" style="width:22px;height:22px;font-size:0.8rem" onclick="setLectureTotal('${currentSubjectView}',${i})">✓</button>
-                  </div>`}
+              <div style="font-size:0.72rem;color:var(--muted);margin-bottom:6px">Read & understood</div>
+              <div onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:4px">
+                  <span style="font-size:0.68rem;color:var(--muted)">Done</span>
+                  <input type="number" min="0" value="${ch.lecturesCompleted||0}" id="lec-done-${currentSubjectView}-${i}" onchange="updateLectureNumbers('${currentSubjectView}',${i})" style="width:46px;padding:4px 6px;font-size:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);text-align:center">
+                </div>
+                <span style="font-size:0.75rem;color:var(--muted)">/</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <input type="number" min="0" value="${ch.lecturesTotal||0}" id="lec-total-${currentSubjectView}-${i}" onchange="updateLectureNumbers('${currentSubjectView}',${i})" style="width:46px;padding:4px 6px;font-size:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);text-align:center">
+                  <span style="font-size:0.68rem;color:var(--muted)">Total</span>
+                </div>
+                <span style="font-size:0.72rem;color:var(--accent2);font-weight:700">(${ch.lecturesCompleted||0}/${ch.lecturesTotal||0})</span>
               </div>
             </div>
           </div>
@@ -1788,37 +1953,38 @@ function toggleChapterExpand(subj, i) {
   icon.classList.toggle('open');
 }
 
-function setLectureTotal(subj, i) {
-  const input = document.getElementById(`lecture-total-input-${subj}-${i}`);
-  const n = parseInt(input.value);
-  if (!n || n<1) { showToast('⚠️','Enter a valid number of lectures!'); return; }
+function updateLectureNumbers(subj, i) {
   const ch = state.chapters[subj][i];
-  ch.lecturesTotal = n;
-  ch.lecturesCompleted = 0;
-  save();
-  renderChapters();
-  reopenChapterCard(subj, i);
-}
+  const doneInput = document.getElementById(`lec-done-${subj}-${i}`);
+  const totalInput = document.getElementById(`lec-total-${subj}-${i}`);
+  let done = parseInt(doneInput.value) || 0;
+  let total = parseInt(totalInput.value) || 0;
+  if (done < 0) done = 0;
+  if (total < 0) total = 0;
+  if (done > total) done = total; // can't have more completed than total
 
-function tickLecture(subj, i) {
-  const ch = state.chapters[subj][i];
-  if (ch.lecturesCompleted >= ch.lecturesTotal) return;
-  ch.lecturesCompleted += 1;
-  addXP(10);
-  if (ch.lecturesCompleted === ch.lecturesTotal) showToast('🎬', 'All lectures done for '+ch.name+'!');
-  save();
-  renderChapters();
-  reopenChapterCard(subj, i);
-}
+  const wasAllDone = ch.lecturesTotal>0 && ch.lecturesCompleted >= ch.lecturesTotal;
+  const isNowAllDone = total>0 && done >= total;
 
-function editLectureTotal(subj, i) {
-  const ch = state.chapters[subj][i];
-  const newTotal = prompt('Total lectures for '+ch.name+':', ch.lecturesTotal);
-  const n = parseInt(newTotal);
-  if (!n || n<1) return;
-  ch.lecturesTotal = n;
-  if (ch.lecturesCompleted > n) ch.lecturesCompleted = n; // don't let completed exceed a lowered total
+  ch.lecturesCompleted = done;
+  ch.lecturesTotal = total;
+  doneInput.value = done;
+  totalInput.value = total;
   save();
+
+  if (isNowAllDone && !wasAllDone) {
+    showToast('🎬', 'All lectures done for '+ch.name+'!');
+    if (!ch.subtasks.theory) {
+      // Reuse the normal subtask-toggle path so XP and chapter-completion
+      // cascading stay consistent with checking it by hand.
+      toggleSubtask(subj, i, 'theory');
+      return; // toggleSubtask already calls save()/renderChapters()/reopen
+    }
+  }
+  // Note: dropping below 100% later does NOT auto-uncheck Theory — if you've
+  // already marked it done (by hand or via auto-complete), lowering the
+  // total afterward shouldn't undo that.
+
   renderChapters();
   reopenChapterCard(subj, i);
 }
@@ -2806,6 +2972,45 @@ function showToast(icon, msg) {
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
+// ===================== NOTIFICATIONS =====================
+function addNotification(icon, title, message) {
+  state.notifications = state.notifications || [];
+  state.notifications.unshift({ id:'notif'+Date.now()+Math.random(), icon, title, message, date:new Date().toISOString(), read:false });
+  if (state.notifications.length > 50) state.notifications = state.notifications.slice(0,50); // cap history
+  save();
+  updateNotificationBadge();
+}
+
+function updateNotificationBadge() {
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  const unreadCount = (state.notifications||[]).filter(n=>!n.read).length;
+  if (unreadCount > 0) { badge.textContent = unreadCount > 9 ? '9+' : unreadCount; badge.style.display = 'flex'; }
+  else { badge.style.display = 'none'; }
+}
+
+function renderNotifications() {
+  const el = document.getElementById('notifications-list');
+  if (!el) return;
+  const list = state.notifications || [];
+  if (list.length===0) { el.innerHTML = '<div class="revision-empty">No notifications yet — they\'ll show up here as you hit milestones.</div>'; return; }
+  el.innerHTML = list.map(n=>`
+    <div class="card mb-16" style="border-color:${n.read?'var(--border)':'var(--accent3)'};${n.read?'':'background:rgba(245,158,11,0.06)'}">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="font-size:1.6rem">${n.icon}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:0.88rem;margin-bottom:4px">${n.title}${n.read?'':' <span style=\"color:var(--accent3);font-size:0.65rem\">● NEW</span>'}</div>
+          <div style="font-size:0.82rem;color:var(--muted);line-height:1.5">${n.message}</div>
+          <div style="font-size:0.68rem;color:var(--muted);margin-top:6px">${new Date(n.date).toLocaleString('default',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</div>
+        </div>
+      </div>
+    </div>`).join('');
+  // Visiting the page marks everything as read
+  list.forEach(n=>n.read=true);
+  save();
+  updateNotificationBadge();
+}
+
 // ===================== QUOTES =====================
 const quotes=['Every chapter you finish is a step closer to IIT Guwahati.','The comeback is always stronger than the setback.','You scored 91.4% in 10th. That genius is still in you.','6 months. Full syllabus. You\'ve got this, Sohum.','Don\'t watch lectures. Solve problems. That\'s the JEE way.','Set a 10-minute timer. Attack the problem. Move on.','IIT Guwahati is not a dream. It\'s a plan.','The syllabus is big. But you\'re bigger.'];
 
@@ -2826,6 +3031,7 @@ async function init() {
   const themeItem = SHOP_THEMES.find(t=>t.id===state.activeTheme);
   if (themeItem) applyTheme(themeItem);
   refreshHeroIdentity();
+  updateNotificationBadge();
   const coinsEl = document.getElementById('nav-coins');
   if (coinsEl) coinsEl.textContent = '🪙 ' + (state.coins||0);
   save();
@@ -2836,12 +3042,6 @@ async function init() {
 }
 
 // ===================== PASSWORD GATE =====================
-// Simple shared-password gate, NOT real per-user authentication — its only
-// job is to keep casual visitors (e.g. a sibling with the link) from opening
-// the dashboard, not to secure sensitive data against a determined attacker.
-// The password is stored here in plain text in the frontend code; anyone who
-// views source can read it. That's an accepted tradeoff for "keep my sibling
-// out", not meant to protect against anything more serious.
 const GATE_PASSWORD = 'jay_jagannath1971';
 const GATE_SESSION_KEY = 'studyhub_gate_passed';
 
