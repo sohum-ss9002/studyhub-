@@ -205,6 +205,7 @@ function defaultState() {
     weeklyHours:[0,0,0,0,0,0,0],
     badges:{},
     dailyTasks:[],
+    dailyGoalsChecked: {}, // { goalId: true } — which Daily Goals checkboxes are checked today; resets daily
     dayComplete:false,
     lastDayDate: null,
     coins: 0,
@@ -1159,6 +1160,7 @@ function resetDailyIfNewDay() {
     state.studyXpToday = 0;
     state.dailyTasks = [];
     state.dayComplete = false;
+    state.dailyGoalsChecked = {}; // fresh goals each day — yesterday's checks shouldn't carry over
     state.lastDayDate = today;
     const dayIdx = (new Date().getDay() + 6) % 7;
     state.weeklyHours[dayIdx] = 0;
@@ -1182,6 +1184,13 @@ function startMidnightWatcher() {
       save();
       updateXP(); updateStreak(); updateTimerDisplay();
       renderQuests(); renderDayStatus();
+      // Visually clear yesterday's checked goals — resetDailyIfNewDay already
+      // cleared the underlying state, but the DOM checkmarks need a manual
+      // reset too since they're not re-rendered from scratch on every tick.
+      document.querySelectorAll('.goal-check.done').forEach(el=>{
+        el.classList.remove('done'); el.textContent='✓';
+        if (el.nextElementSibling) el.nextElementSibling.classList.remove('done');
+      });
       showToast('🌅','New day! Fresh quests and goals are up.');
     }
   }, 30000); // check every 30s — cheap, and catches midnight within half a minute
@@ -1789,17 +1798,31 @@ function updateXP() {
 }
 
 // ===================== GOALS =====================
-function toggleGoal(el, xp) {
+function toggleGoal(goalId, el, xp) {
   const textEl = el.nextElementSibling;
-  if (el.classList.contains('done')) {
+  const wasChecked = !!state.dailyGoalsChecked[goalId];
+  if (wasChecked) {
     el.classList.remove('done'); textEl.classList.remove('done');
+    delete state.dailyGoalsChecked[goalId];
     state.xp = Math.max(0,state.xp-xp); state.comeback = Math.max(0,state.comeback-Math.floor(xp/10));
     updateXP();
   } else {
     el.classList.add('done'); el.textContent='✓'; textEl.classList.add('done');
+    state.dailyGoalsChecked[goalId] = true;
     addXP(xp);
   }
   save();
+}
+
+function renderDailyGoals() {
+  const checked = state.dailyGoalsChecked || {};
+  Object.keys(checked).forEach(goalId=>{
+    const el = document.getElementById('goal-check-'+goalId);
+    if (!el) return;
+    el.classList.add('done');
+    el.textContent = '✓';
+    if (el.nextElementSibling) el.nextElementSibling.classList.add('done');
+  });
 }
 
 // ===================== STREAK =====================
@@ -3023,6 +3046,7 @@ async function init() {
   updateStreak();
   renderLifestyleWidget();
   renderPyqDppWidget();
+  renderDailyGoals();
   updateSubjectStats(); updateMonthYearProgress();
   document.getElementById('stat-questions').textContent=state.totalQuestions;
   document.getElementById('hero-quote').textContent=quotes[Math.floor(Math.random()*quotes.length)];

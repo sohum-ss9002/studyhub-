@@ -130,12 +130,12 @@
       <div class="card">
         <div class="card-title">🎯 Daily Goals</div>
         <div id="goals-list">
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,50)">✓</div><div class="goal-text">Solve 20 DPP questions</div><div class="goal-xp">+50 XP</div></div>
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,30)">✓</div><div class="goal-text">Study 4 hours minimum</div><div class="goal-xp">+30 XP</div></div>
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,40)">✓</div><div class="goal-text">Complete 1 chapter topic</div><div class="goal-xp">+40 XP</div></div>
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,20)">✓</div><div class="goal-text">Revise yesterday's notes</div><div class="goal-xp">+20 XP</div></div>
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,25)">✓</div><div class="goal-text">Go cycling 🚴</div><div class="goal-xp">+25 XP</div></div>
-          <div class="goal-item"><div class="goal-check" onclick="toggleGoal(this,15)">✓</div><div class="goal-text">Sleep by 1 AM 😴</div><div class="goal-xp">+15 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-dpp" onclick="toggleGoal('dpp',this,50)">✓</div><div class="goal-text">Solve 20 DPP questions</div><div class="goal-xp">+50 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-hours" onclick="toggleGoal('hours',this,30)">✓</div><div class="goal-text">Study 4 hours minimum</div><div class="goal-xp">+30 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-chapter" onclick="toggleGoal('chapter',this,40)">✓</div><div class="goal-text">Complete 1 chapter topic</div><div class="goal-xp">+40 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-revise" onclick="toggleGoal('revise',this,20)">✓</div><div class="goal-text">Revise yesterday's notes</div><div class="goal-xp">+20 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-cycling" onclick="toggleGoal('cycling',this,25)">✓</div><div class="goal-text">Go cycling 🚴</div><div class="goal-xp">+25 XP</div></div>
+          <div class="goal-item"><div class="goal-check" id="goal-check-sleep" onclick="toggleGoal('sleep',this,15)">✓</div><div class="goal-text">Sleep by 1 AM 😴</div><div class="goal-xp">+15 XP</div></div>
         </div>
         <div class="mt-16"><button class="btn btn-secondary" style="width:100%;font-size:0.8rem" onclick="logQuestions()">+ Log Questions Solved</button></div>
       </div>
