@@ -1388,10 +1388,10 @@ function updateCountdown() {
 
 // ===================== XP & LEVELS =====================
 const LEVELS = [
-  {min:0, name:'⚔️ ROOKIE SCHOLAR'},{min:500, name:'📖 KNOWLEDGE SEEKER'},
-  {min:1500, name:'🔥 CHAPTER SLAYER'},{min:3000, name:'⚡ FORMULA MASTER'},
-  {min:6000, name:'🧠 PROBLEM CRUSHER'},{min:10000, name:'🏆 JEE WARRIOR'},
-  {min:15000, name:'💎 ELITE SCHOLAR'},{min:25000, name:'👑 IIT DESTINED'},
+  {min:0, name:'⚔️ ROOKIE SCHOLAR'},{min:2000, name:'📖 KNOWLEDGE SEEKER'},
+  {min:6000, name:'🔥 CHAPTER SLAYER'},{min:13000, name:'⚡ FORMULA MASTER'},
+  {min:23000, name:'🧠 PROBLEM CRUSHER'},{min:36000, name:'🏆 JEE WARRIOR'},
+  {min:52000, name:'💎 ELITE SCHOLAR'},{min:72000, name:'👑 IIT DESTINED'},
 ];
 
 // ===== FUTURE YOU MESSAGES =====
@@ -2489,9 +2489,11 @@ function startSubjectTimer(subj) {
     updateTimerDisplay();
     const totalSecondsAllSubjects = sessionSeconds.physics + sessionSeconds.chemistry + sessionSeconds.maths;
     if (totalSecondsAllSubjects%3600===0) {
-      addXP(50); state.studyXpToday+=50;
+      const hoursCompleted = totalSecondsAllSubjects/3600;
+      const xpForThisHour = hoursCompleted <= 4 ? 20 : 5;
+      addXP(xpForThisHour); state.studyXpToday+=xpForThisHour;
       document.getElementById('timer-xp-today').textContent = state.studyXpToday;
-      showToast('⏱️','1 hour studied! +50 XP!');
+      showToast('⏱️', hoursCompleted<=4 ? `${hoursCompleted}h studied! +${xpForThisHour} XP!` : `${hoursCompleted}h studied! Bonus +${xpForThisHour} XP for going beyond 4!`);
     }
     if (state.todaySeconds%30===0) checkQuestClaims();
     save();
